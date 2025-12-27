@@ -17,7 +17,15 @@ Complete guide to all project documentation.
 - **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Database schema, tables, relationships, and functions
 
 ### Deployment
+- **[DEPLOY_TO_GCP_NOW.md](./DEPLOY_TO_GCP_NOW.md)** - Complete step-by-step guide to deploy to Google Cloud NOW ⭐ START HERE
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide, configuration, and best practices
+- **[GCP_DEPLOYMENT_CUSTOM_DOMAIN.md](./GCP_DEPLOYMENT_CUSTOM_DOMAIN.md)** - Deploy to Google Cloud with custom domain (purchase-management.fedhubsoftware.com)
+- **[GCP_DEPLOYMENT_STEP_BY_STEP.md](./GCP_DEPLOYMENT_STEP_BY_STEP.md)** - Complete step-by-step guide for Google Cloud Platform deployment
+- **[GCP_DEPLOYMENT_SIMPLE_DOMAIN.md](./GCP_DEPLOYMENT_SIMPLE_DOMAIN.md)** - Simplified custom domain setup using Cloud Run domain mapping
+- **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - Quick deployment steps for Google Cloud Platform
+- **[GCP_DEPLOYMENT.md](./GCP_DEPLOYMENT.md)** - Detailed Google Cloud Platform deployment guide
+- **[HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md)** - Complete guide for deploying to Hostinger VPS/Cloud hosting
+- **[DESKTOP_APP_GUIDE.md](./DESKTOP_APP_GUIDE.md)** - Guide for converting the application to a desktop app (Electron/Tauri)
 
 ## 🗺️ Quick Navigation
 
@@ -31,7 +39,10 @@ Complete guide to all project documentation.
 2. Check [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for data models
 
 ### For Deployment
-1. Follow [DEPLOYMENT.md](./DEPLOYMENT.md) step by step
+1. Choose your platform:
+   - **Hostinger VPS/Cloud**: Follow [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md)
+   - **Google Cloud Platform**: Follow [DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)
+   - **Other platforms**: Follow [DEPLOYMENT.md](./DEPLOYMENT.md)
 2. Reference [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for database setup
 
 ## 📖 Documentation Overview
@@ -92,6 +103,19 @@ Complete guide to all project documentation.
 - Security hardening
 - Scaling strategies
 
+### DEPLOYMENT_QUICK_START.md
+- Quick deployment to Google Cloud Platform
+- Simplified step-by-step instructions
+- GCP-specific configurations
+
+### HOSTINGER_DEPLOYMENT.md
+- Complete Hostinger VPS/Cloud deployment guide
+- Server setup and configuration
+- Nginx reverse proxy setup
+- SSL/HTTPS configuration
+- PM2 process management
+- Troubleshooting guide
+
 ## 🔍 Finding Information
 
 ### "How do I..."
@@ -100,7 +124,7 @@ Complete guide to all project documentation.
 - **Add a new API endpoint?** → [BACKEND_ARCHITECTURE.md](./BACKEND_ARCHITECTURE.md) + [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 - **Create a new component?** → [FRONTEND_ARCHITECTURE.md](./FRONTEND_ARCHITECTURE.md)
 - **Understand database structure?** → [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)
-- **Deploy to production?** → [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Deploy to production?** → [DEPLOYMENT.md](./DEPLOYMENT.md) or [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md) for Hostinger
 - **Find API endpoints?** → [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 
 ## 📝 Documentation Standards

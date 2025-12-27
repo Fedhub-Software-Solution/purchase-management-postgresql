@@ -107,6 +107,7 @@ export function AddItemForm({
                 <SelectValue placeholder="Select UOM" />
               </SelectTrigger>
               <SelectContent>
+              <SelectItem value="cft">CFT</SelectItem>
                 <SelectItem value="pcs">Pieces (pcs)</SelectItem>
                 <SelectItem value="kg">Kilograms (kg)</SelectItem>
                 <SelectItem value="ltr">Liters (ltr)</SelectItem>

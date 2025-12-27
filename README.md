@@ -106,9 +106,13 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 - [Database Schema](./DATABASE_SCHEMA.md) - Database structure and relationships
 - [Frontend Architecture](./FRONTEND_ARCHITECTURE.md) - Frontend structure and patterns
 - [Backend Architecture](./BACKEND_ARCHITECTURE.md) - Backend structure and patterns
+- [Deploy to Google Cloud - Step by Step](./DEPLOY_TO_GCP_NOW.md) - Complete step-by-step guide to deploy NOW ⭐ START HERE
 - [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
-- [Google Cloud Deployment](./GCP_DEPLOYMENT.md) - Complete GCP deployment guide
+- [Google Cloud Deployment - Step by Step](./GCP_DEPLOYMENT_STEP_BY_STEP.md) - Complete walkthrough for GCP deployment
+- [Google Cloud Deployment](./GCP_DEPLOYMENT.md) - Detailed GCP deployment guide
 - [Quick Start Deployment](./DEPLOYMENT_QUICK_START.md) - Quick deployment steps
+- [Hostinger Deployment](./HOSTINGER_DEPLOYMENT.md) - Complete Hostinger VPS/Cloud deployment guide
+- [Desktop App Guide](./DESKTOP_APP_GUIDE.md) - Convert to desktop application (Electron/Tauri)
 
 ## 🎯 Features
 
