@@ -1,7 +1,7 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/purchase-management-api', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/purchase-management-api', '-f', 'backend/Dockerfile', 'backend']
   
   # Push the container image
   - name: 'gcr.io/cloud-builders/docker'
@@ -13,6 +13,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'purchase-management-api'
+      - '--quiet'
       - '--image'
       - 'gcr.io/$PROJECT_ID/purchase-management-api'
       - '--region'
@@ -21,11 +22,11 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances'
-      - '${_CLOUDSQL_INSTANCE}'
+      - '$_CLOUDSQL_INSTANCE'
       - '--set-env-vars'
-      - 'NODE_ENV=production,DB_HOST=/cloudsql/${_CLOUDSQL_INSTANCE},DB_NAME=purchase_management,DB_USER=${_DB_USER},DB_SSL=true,DB_PORT=5432'
+      - 'NODE_ENV=production,DB_HOST=/cloudsql/$_CLOUDSQL_INSTANCE,DB_NAME=purchase_management,DB_USER=$_DB_USER,DB_SSL=true,DB_PORT=5432'
       - '--set-secrets'
-      - 'JWT_SECRET=${_JWT_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD}:latest'
+      - 'JWT_SECRET=$_JWT_SECRET:latest,DB_PASSWORD=$_DB_PASSWORD:latest'
       - '--memory'
       - '512Mi'
       - '--cpu'
@@ -41,8 +42,25 @@ images:
   - 'gcr.io/$PROJECT_ID/purchase-management-api'
 
 substitutions:
-  _CLOUDSQL_INSTANCE: 'PROJECT_ID:us-central1:purchase-management-db'
-  _DB_USER: 'app_user'
-  _JWT_SECRET: 'jwt-secret'
-  _DB_PASSWORD: 'db-user-password'
+  _SERVICE_NAME: 'purchase-management-api'
+  _REGION: 'us-central1'
+  # Pipe-separated to avoid breaking Cloud Run's --set-env-vars comma parsing.
+  _CLIENT_ORIGIN: 'https://purchase-management.fedhubsoftware.com|http://localhost:3000|http://127.0.0.1:3000'
+  _DATABASE_SECRET: 'purchase-management-db'
+  _JWT_SECRET: 'JWT_SECRET'
+  # SMTP settings (used to send account verification + notifications).
+  # Prefer storing SMTP_PASS as a Cloud Secret in a future hardening pass.
+  _SMTP_HOST: 'smtp.gmail.com'
+  _SMTP_PORT: '587'
+  _SMTP_SECURE: 'false'
+  _SMTP_USER: 'info.fedhub@gmail.com'
+  _SMTP_PASS: 'ngzwxxdaxvllesif'
+  _MAIL_FROM: 'info@fedhubsoftware.com'
+  # Note: BUILD_ID is automatically available in all Cloud Build runs
+  # For source repository triggers, you can use SHORT_SHA instead by replacing ${BUILD_ID} with ${SHORT_SHA}
+  # Note: If your database requires VPC access, add these flags:
+  # - '--vpc-connector'
+  # - '${_VPC_CONNECTOR}'
+  # - '--vpc-egress'
+  # - 'all-traffic'
 

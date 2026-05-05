@@ -9,6 +9,9 @@ const SETTINGS_KEY = "current";
 type Theme = "light" | "dark";
 
 export type AppSettings = {
+  // DB row id (optional)
+  id?: string;
+
   // Appearance
   theme: Theme;
   sidebarCollapsed: boolean;
