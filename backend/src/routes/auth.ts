@@ -92,44 +92,49 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
 
 // POST /api/auth/login
 router.post("/login", async (req: Request, res: Response) => {
-  const { email, password } = (req.body || {}) as {
-    email?: string;
-    password?: string;
-  };
+  try {
+    const { email, password } = (req.body || {}) as {
+      email?: string;
+      password?: string;
+    };
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const user = await queryOne<User>(
+      "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+      [email]
+    );
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: "User is disabled" });
+    }
+
+    const token = signJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    });
+
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, role: user.role, name: user.name },
+    });
+  } catch (err: any) {
+    console.error("POST /auth/login error", err);
+    return res.status(503).json({ error: "Database unavailable" });
   }
-
-  const user = await queryOne<User>(
-    "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
-    [email]
-  );
-
-  if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
-
-  const validPassword = await bcrypt.compare(password, user.password_hash);
-  if (!validPassword) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
-
-  if (!user.active) {
-    return res.status(403).json({ error: "User is disabled" });
-  }
-
-  const token = signJWT({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-  });
-
-  return res.json({
-    token,
-    user: { id: user.id, email: user.email, role: user.role, name: user.name },
-  });
 });
 
 // POST /api/auth/logout

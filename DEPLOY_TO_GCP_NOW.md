@@ -241,7 +241,7 @@ gcloud secrets add-iam-policy-binding db-user-password `
 
 ```yaml
 substitutions:
-  _CLOUDSQL_INSTANCE: 'YOUR_PROJECT_ID:us-central1:purchase-management-db'
+  _CLOUDSQL_INSTANCE: 'purchase-mgmt-20260505224101:us-central1:purchase-management-db'
   _DB_USER: 'app_user'
   _JWT_SECRET: 'jwt-secret'
   _DB_PASSWORD: 'db-user-password'
@@ -255,7 +255,7 @@ substitutions:
 
 ---
 
-## Step 6: Deploy Backend to Cloud Run
+## Step 6: Deploy Backend to Cloud Run (Windows)
 
 Open PowerShell and run:
 
@@ -274,6 +274,47 @@ $BACKEND_URL = gcloud run services describe purchase-management-api `
 
 Write-Host "Backend URL: $BACKEND_URL"
 ```
+
+---
+
+## Step 6.1: Set Up Auto Deployment Trigger for Backend (Windows + GitHub)
+
+This step creates an automatic deployment so that **every push to your main branch rebuilds and redeploys the backend** to Cloud Run using the existing `backend/cloudbuild.yaml`.
+
+1. Push your code to GitHub (if not already):
+
+```powershell
+# From the project root
+git status
+git add .
+git commit -m "Initial Google Cloud backend deployment"
+git branch -M main      # Only if you want 'main' as default branch
+git remote add origin https://github.com/YOUR_USER/purchase-management-postgresql.git
+git push -u origin main
+```
+
+2. In your browser, open Google Cloud Console → **Cloud Build → Triggers**.  
+3. Click **“Create Trigger”**.
+4. Choose **GitHub** as the repository source and connect your GitHub account (if prompted).
+5. Select your repository that contains this project.
+6. Configure the trigger:
+   - **Name**: `backend-auto-deploy`
+   - **Event**: **Push to a branch**
+   - **Branch**: `^main$` (or `^master$` if you use `master`)
+   - **Configuration**: **Cloud Build configuration file (YAML or JSON)**
+   - **Cloud Build file location**: `backend/cloudbuild.yaml`
+7. Click **Create**.
+
+Now, whenever you push changes to the selected branch, Google Cloud Build will:
+
+1. Run `backend/cloudbuild.yaml`
+2. Build a new Docker image for the backend
+3. Redeploy `purchase-management-api` on Cloud Run automatically
+
+You can monitor deployments in:
+
+- **Cloud Build → History** (build logs)  
+- **Cloud Run → Services → purchase-management-api → Revisions** (deployed versions)
 
 **⏱️ Wait:** This takes 5-10 minutes. The build process will:
 1. Build Docker image
