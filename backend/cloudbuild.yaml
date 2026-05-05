@@ -41,6 +41,11 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/purchase-management-api'
 
+options:
+  # Required when the trigger/build specifies a custom service account.
+  # This avoids the “build.service_account requires logs_bucket/default_logs_bucket_behavior/logging option” error.
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _SERVICE_NAME: 'purchase-management-api'
   _REGION: 'us-central1'
