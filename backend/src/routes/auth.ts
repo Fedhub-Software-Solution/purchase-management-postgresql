@@ -8,6 +8,8 @@ const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key";
 const TOKEN_TTL_SECONDS = 60 * 60 * 12; // 12h
+const SEED_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@fedhubsoftware.com";
+const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
 
 type Role = "admin" | "employee";
 
@@ -28,17 +30,17 @@ export type User = {
 async function seedUsersIfMissing() {
   const adminExists = await queryOne(
     "SELECT id FROM users WHERE email = $1",
-    ["admin@fedhubsoftware.com"]
+    [SEED_ADMIN_EMAIL]
   );
 
   if (!adminExists) {
-    const hashedPassword = await bcrypt.hash("Admin@123", 10);
+    const hashedPassword = await bcrypt.hash(SEED_ADMIN_PASSWORD, 10);
     await query(
       `INSERT INTO users (email, password_hash, role, name, active)
        VALUES ($1, $2, $3, $4, $5)`,
-      ["admin@fedhubsoftware.com", hashedPassword, "admin", "System Admin", true]
+      [SEED_ADMIN_EMAIL, hashedPassword, "admin", "System Admin", true]
     );
-    console.log("[auth] Created default admin user");
+    console.log("[auth] Created seed admin user");
   }
 
   const employeeExists = await queryOne(
@@ -92,49 +94,44 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
 
 // POST /api/auth/login
 router.post("/login", async (req: Request, res: Response) => {
-  try {
-    const { email, password } = (req.body || {}) as {
-      email?: string;
-      password?: string;
-    };
+  const { email, password } = (req.body || {}) as {
+    email?: string;
+    password?: string;
+  };
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    const user = await queryOne<User>(
-      "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
-      [email]
-    );
-
-    if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    if (!user.active) {
-      return res.status(403).json({ error: "User is disabled" });
-    }
-
-    const token = signJWT({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name,
-    });
-
-    return res.json({
-      token,
-      user: { id: user.id, email: user.email, role: user.role, name: user.name },
-    });
-  } catch (err: any) {
-    console.error("POST /auth/login error", err);
-    return res.status(503).json({ error: "Database unavailable" });
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
   }
+
+  const user = await queryOne<User>(
+    "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+    [email]
+  );
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  const validPassword = await bcrypt.compare(password, user.password_hash);
+  if (!validPassword) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  if (!user.active) {
+    return res.status(403).json({ error: "User is disabled" });
+  }
+
+  const token = signJWT({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name,
+  });
+
+  return res.json({
+    token,
+    user: { id: user.id, email: user.email, role: user.role, name: user.name },
+  });
 });
 
 // POST /api/auth/logout

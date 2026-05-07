@@ -2,7 +2,7 @@
 import { Router, Request, Response } from "express";
 import { query, queryOne } from "../database.js";
 import { z } from "zod";
-import { parseListParams, sendZodError, getOffset, createPageToken, handleDbError } from "../common.js";
+import { sendZodError, getOffset, createPageToken, handleDbError } from "../common.js";
 import type { Client } from "../types.js";
 
 export const clientsRouter = Router();
@@ -70,7 +70,9 @@ function rowToClient(row: any): Client {
 // GET /api/clients
 clientsRouter.get("/", async (req: Request, res: Response) => {
   try {
-    const { limit, pageToken } = parseListParams(req);
+    const rawLimit = Number(req.query.limit ?? 2000);
+    const limit = Math.max(1, Math.min(5000, Number.isFinite(rawLimit) ? rawLimit : 2000));
+    const pageToken = req.query.pageToken ? String(req.query.pageToken) : undefined;
     const offset = getOffset(pageToken);
 
     const clients = await query(

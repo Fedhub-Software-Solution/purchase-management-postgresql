@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -29,6 +30,9 @@ import {
   Mail,
   Phone,
   MapPin,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Breadcrumb } from "../Breadcrumb";
 import { ClientFilters } from "./ClientFilters";
@@ -60,7 +64,31 @@ export function ClientList({
   isDeleting,
   uniqueStates,
 }: ClientListProps) {
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
   const breadcrumbItems = [{ label: "Home", onClick: () => {} }];
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedClients = useMemo(
+    () => filteredClients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredClients, safePage]
+  );
+  const toggleSort = (
+    sortBy: "company" | "contactPerson" | "email" | "phone" | "city" | "status" | "createdAt"
+  ) => {
+    const nextOrder = filters.sortBy === sortBy && filters.sortOrder === "asc" ? "desc" : "asc";
+    onFiltersChange({ ...filters, sortBy, sortOrder: nextOrder });
+  };
+  const sortIcon = (
+    sortBy: "company" | "contactPerson" | "email" | "phone" | "city" | "status" | "createdAt"
+  ) => {
+    if (filters.sortBy !== sortBy) return <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />;
+    return filters.sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />;
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredClients.length]);
 
   return (
     <motion.div
@@ -163,18 +191,48 @@ export function ClientList({
           <Table>
             <TableHeader>
               <TableRow className="border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50/50 to-blue-50/50 dark:from-gray-800/50 dark:to-blue-900/50">
-                <TableHead className="font-medium">Company</TableHead>
-                <TableHead className="font-medium">Contact Person</TableHead>
-                <TableHead className="font-medium">Email</TableHead>
-                <TableHead className="font-medium">Phone</TableHead>
-                <TableHead className="font-medium">Location</TableHead>
-                <TableHead className="font-medium">Status</TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("company")}>
+                    Company
+                    {sortIcon("company")}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("contactPerson")}>
+                    Contact Person
+                    {sortIcon("contactPerson")}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("email")}>
+                    Email
+                    {sortIcon("email")}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("phone")}>
+                    Phone
+                    {sortIcon("phone")}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("city")}>
+                    Location
+                    {sortIcon("city")}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-medium">
+                  <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("status")}>
+                    Status
+                    {sortIcon("status")}
+                  </Button>
+                </TableHead>
                 <TableHead className="font-medium text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <AnimatePresence>
-                {filteredClients.map((client, index) => (
+                {paginatedClients.map((client, index) => (
                   <motion.tr
                     key={client.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -292,6 +350,36 @@ export function ClientList({
           </Table>
         )}
       </motion.div>
+      {filteredClients.length > PAGE_SIZE && (
+        <div className="grid grid-cols-3 items-center">
+          <p className="text-sm text-muted-foreground justify-self-start">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}-
+            {Math.min(safePage * PAGE_SIZE, filteredClients.length)} of {filteredClients.length} clients
+          </p>
+          <div className="flex items-center gap-2 justify-self-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-2">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+          <div />
+        </div>
+      )}
     </motion.div>
   );
 }

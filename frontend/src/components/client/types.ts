@@ -4,7 +4,7 @@ export type ClientFilters = {
   search: string;
   state: string;
   status: string;
-  sortBy: 'company' | 'createdAt' | 'city';
+  sortBy: 'company' | 'contactPerson' | 'email' | 'phone' | 'city' | 'status' | 'createdAt';
   sortOrder: 'asc' | 'desc';
 };
 

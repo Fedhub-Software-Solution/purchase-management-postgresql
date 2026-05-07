@@ -1,5 +1,4 @@
-import { GlassCard } from "../GlassCard";
-import { CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
@@ -10,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Filter, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import type { FinanceFilters as FinanceFiltersType } from "./types";
 
 interface FinanceFiltersProps {
@@ -25,10 +24,10 @@ export function FinanceFilters({
   availableCategories,
 }: FinanceFiltersProps) {
   const hasActiveFilters =
-    filters.search ||
-    filters.type !== "all" ||
-    filters.category !== "all" ||
-    filters.status !== "all";
+    filters.searchTerm ||
+    filters.typeFilter !== "all" ||
+    filters.categoryFilter !== "all" ||
+    filters.statusFilter !== "all";
 
   const clearFilters = () => {
     onFiltersChange({
@@ -41,17 +40,11 @@ export function FinanceFilters({
   };
 
   return (
-    <GlassCard>
-      <CardHeader>
-        <CardTitle className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          <span className="text-sm">Search & Filters</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Search</Label>
+    <div className="space-y-3">
+      <Card className="border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+          <div className="space-y-1.5 lg:col-span-1">
+            <Label className="text-xs font-medium text-slate-600 dark:text-slate-300">Search</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -60,7 +53,7 @@ export function FinanceFilters({
                 onChange={(e) =>
                   onFiltersChange({ ...filters, searchTerm: e.target.value })
                 }
-                className="pl-10 bg-white/70 dark:bg-gray-800/70"
+                className="pl-10 h-9 bg-background border-slate-300 dark:border-slate-700"
               />
               {filters.searchTerm && (
                 <Button
@@ -75,15 +68,15 @@ export function FinanceFilters({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Type</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-600 dark:text-slate-300">Type</Label>
             <Select
               value={filters.typeFilter}
               onValueChange={(v: any) =>
                 onFiltersChange({ ...filters, typeFilter: v, categoryFilter: "all" })
               }
             >
-              <SelectTrigger className="bg-white/70 dark:bg-gray-800/70">
+              <SelectTrigger className="h-9 bg-background border-slate-300 dark:border-slate-700">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
@@ -95,15 +88,15 @@ export function FinanceFilters({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Category</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-600 dark:text-slate-300">Category</Label>
             <Select
               value={filters.categoryFilter}
               onValueChange={(v: any) =>
                 onFiltersChange({ ...filters, categoryFilter: v })
               }
             >
-              <SelectTrigger className="bg-white/70 dark:bg-gray-800/70">
+              <SelectTrigger className="h-9 bg-background border-slate-300 dark:border-slate-700">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -117,15 +110,15 @@ export function FinanceFilters({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Status</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-600 dark:text-slate-300">Status</Label>
             <Select
               value={filters.statusFilter}
               onValueChange={(v: any) =>
                 onFiltersChange({ ...filters, statusFilter: v })
               }
             >
-              <SelectTrigger className="bg-white/70 dark:bg-gray-800/70">
+              <SelectTrigger className="h-9 bg-background border-slate-300 dark:border-slate-700">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -136,21 +129,18 @@ export function FinanceFilters({
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {/* Results count will be shown by parent */}
-          </div>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="w-4 h-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
         </div>
-      </CardContent>
-    </GlassCard>
+      </Card>
+      {hasActiveFilters && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full md:w-auto">
+            <X className="w-4 h-4 mr-1" />
+            Clear Filters
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -4,23 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Switch } from "./ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import {
-  Moon,
-  Sun,
-  Bell,
   User,
   Building,
-  Palette,
   Save,
   FileText,
   Shield,
@@ -70,9 +57,9 @@ const DEFAULTS: AppSettings = {
   companyPhone: "+91 9003285428",
   companyAddress:
     "P No 69,70 Gokula Nandhana, Gokul Nagar, Hosur, Krishnagiri-DT, Tamilnadu, India-635109",
-  companyGST: "33AACCF2123P1Z5",
-  companyPAN: "AACCF2123P",
-  companyMSME: "UDYAM-TN-06-0012345",
+  companyGST: "33CUUPA9347J1Z4",
+  companyPAN: "AAJFF8051D",
+  companyMSME: "UDYAM-TN-11-0105606",
 
   // Invoice Settings
   defaultTaxRate: 18,
@@ -139,15 +126,10 @@ export function Settings({ onLogout, userInfo }: SettingsProps) {
     }
   };
 
-  const toggleTheme = () => {
-    const newTheme = settings.theme === "light" ? "dark" : "light";
-    setSettings((s: any) => ({ ...s, theme: newTheme }));
-  };
-
   const breadcrumbItems = [{ label: "Home", onClick: () => {} }];
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <Breadcrumb items={breadcrumbItems} currentPage="Settings" />
 
       <div>
@@ -382,116 +364,6 @@ export function Settings({ onLogout, userInfo }: SettingsProps) {
                 disabled={isLoading}
               />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Appearance Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="w-5 h-5" />
-            Appearance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Theme</Label>
-              <p className="text-sm text-muted-foreground">
-                Choose your preferred color scheme
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={toggleTheme}
-              className="flex items-center gap-2"
-              disabled={isLoading}
-            >
-              {settings.theme === "light" ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
-              {settings.theme === "light" ? "Dark Mode" : "Light Mode"}
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Sidebar</Label>
-              <p className="text-sm text-muted-foreground">
-                Default sidebar state
-              </p>
-            </div>
-            <Switch
-              checked={!!settings.sidebarCollapsed}
-              onCheckedChange={(checked: boolean) =>
-                setSettings({ ...settings, sidebarCollapsed: checked })
-              }
-              disabled={isLoading}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notification Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notifications
-          </CardTitle>
-        </CardHeader>
-      <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Email Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Receive notifications via email
-              </p>
-            </div>
-            <Switch
-              checked={!!settings.emailNotifications}
-              onCheckedChange={(checked: boolean) =>
-                setSettings({ ...settings, emailNotifications: checked })
-              }
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Push Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Receive browser push notifications
-              </p>
-            </div>
-            <Switch
-              checked={!!settings.pushNotifications}
-              onCheckedChange={(checked: boolean) =>
-                setSettings({ ...settings, pushNotifications: checked })
-              }
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Invoice Reminders</Label>
-              <p className="text-sm text-muted-foreground">
-                Automatic reminders for overdue invoices
-              </p>
-            </div>
-            <Switch
-              checked={!!settings.invoiceReminders}
-              onCheckedChange={(checked: boolean) =>
-                setSettings({ ...settings, invoiceReminders: checked })
-              }
-              disabled={isLoading}
-            />
           </div>
         </CardContent>
       </Card>

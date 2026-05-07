@@ -16,13 +16,14 @@ import {
 } from "lucide-react";
 import { formatCurrency, DEFAULT_CURRENCY, getExchangeRateDisclaimer } from "../../utils/currency";
 import { formatDate } from "../../utils/datetime";
-import type { Purchase, Client } from "../../types";
+import type { Purchase, Supplier } from "../../types";
 import { getStatusColor, getStatusIcon } from "./utils";
 import { PurchaseItemsTable } from "./PurchaseItemsTable";
+import { useGetSettingsQuery } from "../../lib/api/slices/settings";
 
 interface PurchaseViewProps {
   purchase: Purchase;
-  client: Client | undefined;
+  supplier: Supplier | undefined;
   onEdit: (purchase: Purchase) => void;
   onDelete: (purchaseId: string) => void;
   onBack: () => void;
@@ -30,11 +31,24 @@ interface PurchaseViewProps {
 
 export function PurchaseView({
   purchase,
-  client,
+  supplier,
   onEdit,
   onDelete,
   onBack,
 }: PurchaseViewProps) {
+  const { data: settings } = useGetSettingsQuery();
+  const company = {
+    companyName: settings?.companyName || "FedHub Software Solutions",
+    companyEmail: settings?.companyEmail || "info@fedhubsoftware.com",
+    companyPhone: settings?.companyPhone || "+91 9003285428",
+    companyAddress:
+      settings?.companyAddress ||
+      "P No 69,70 Gokula Nandhana, Gokul Nagar, Hosur, Krishnagiri-DT, Tamil Nadu, India-635109",
+    companyGST: settings?.companyGST || "33CUUPA9347J1Z4",
+    companyPAN: settings?.companyPAN || "AAJFF8051D",
+    companyMSME: settings?.companyMSME || "UDYAM-TN-11-0105606",
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -65,104 +79,75 @@ export function PurchaseView({
           </div>
         </CardHeader>
         <CardContent className="space-y-8">
-          {/* Purchase Information */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-medium">Purchase Information</h3>
+          {/* Company Header */}
+          <div className="flex items-start justify-between p-4 border rounded-xl bg-muted/30">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-blue-600">{company.companyName}</h3>
+              <p className="text-sm text-muted-foreground">{company.companyAddress}</p>
+              <p className="text-sm">{company.companyEmail} | {company.companyPhone}</p>
+              <p className="text-xs text-muted-foreground">
+                GST: <span className="font-mono">{company.companyGST}</span> | PAN:{" "}
+                <span className="font-mono">{company.companyPAN}</span> | MSME:{" "}
+                <span className="font-mono">{company.companyMSME}</span>
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border rounded-xl bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-900/10 dark:to-cyan-900/10 border-blue-200 dark:border-blue-800">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">
-                  PO Number
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="font-mono">
-                    {purchase.poNumber}
-                  </Badge>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">
-                  Purchase ID
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="font-mono">
-                    #{purchase.id}
-                  </Badge>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">
-                  Created Date
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span>{formatDate(purchase?.createdAt)}</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">
-                  Total Items
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Package className="w-4 h-4 text-muted-foreground" />
-                  <span>
-                    {purchase.items.length}{" "}
-                    {purchase.items.length === 1 ? "item" : "items"}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <img
+              src="/fedhub-logo.png"
+              alt="Fedhub Logo"
+              className="h-14 w-auto object-contain"
+            />
           </div>
 
-          {/* Client Information */}
-          {client && (
-            <div className="space-y-6">
+          {/* Purchase + Supplier Information (Parallel) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20">
-                  <User className="w-5 h-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
+                  <FileText className="w-5 h-5 text-blue-600" />
                 </div>
-                <h3 className="text-lg font-medium">Client Information</h3>
+                <h3 className="text-lg font-medium">Purchase Information</h3>
               </div>
-
-              <div className="p-6 border rounded-xl bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 border-green-200 dark:border-green-800">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Company
-                      </Label>
-                      <p className="text-lg font-semibold">{client.company}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Contact Person
-                      </Label>
-                      <p>{client.contactPerson}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Email
-                      </Label>
-                      <p>{client.email}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Phone
-                      </Label>
-                      <p>{client.phone}</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="p-6 border rounded-xl bg-muted/30 space-y-2">
+                <p className="text-lg font-semibold text-blue-600">PO#: {purchase.poNumber}</p>
+                <p className="text-sm text-muted-foreground">
+                  Supplier Code: <span className="font-mono">{supplier?.supplierCode || "N/A"}</span>
+                </p>
+                <p className="text-sm">
+                  Target Date: {formatDate((purchase as any)?.date || purchase?.createdAt)}
+                </p>
+                <p className="text-sm">Created Date: {formatDate(purchase?.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Total Items: {purchase.items.length} {purchase.items.length === 1 ? "item" : "items"}
+                </p>
               </div>
             </div>
-          )}
+
+            {supplier && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20">
+                    <User className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-medium">Supplier Information</h3>
+                </div>
+                <div className="p-6 border rounded-xl bg-muted/30">
+                  <h4 className="text-lg font-semibold text-blue-600 mb-1">
+                    {supplier.name}
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    {supplier.address || "Address not available"}
+                  </p>
+                  <p className="text-sm">
+                    {supplier.email || "No email"} | {supplier.phone || "No phone"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    GST: <span className="font-mono">{supplier.gstin || "N/A"}</span> | PAN:{" "}
+                    <span className="font-mono">{supplier.panNumber || "N/A"}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Items Details */}
           <div className="space-y-6">

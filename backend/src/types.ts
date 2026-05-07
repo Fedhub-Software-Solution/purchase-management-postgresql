@@ -39,9 +39,38 @@ export interface PurchaseItem {
   total: number;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  supplierCode: string;
+  panNumber: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  gstin: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  categories: string[];
+  status: "active" | "inactive";
+  bankInfo?: {
+    accountName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    branch?: string;
+    upiId?: string;
+  };
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Purchase {
   id: string;
-  clientId: string;
+  clientId?: string;
+  supplierId?: string;
   poNumber: string;
   date: string;
   status: 'draft' | 'approved' | 'pending' | 'rejected';

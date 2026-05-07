@@ -19,6 +19,7 @@ export type InvoiceFilters = {
 };
 
 export type InvoiceFormData = {
+  invoiceNumber: string;
   clientId: string;
   dueDate: string;
   notes: string;

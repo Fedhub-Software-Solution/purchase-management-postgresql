@@ -5,6 +5,7 @@ import { purchaseApi } from "./lib/api/slices/purchases";
 import { invoiceApi } from "./lib/api/slices/invoices";
 import { financeApi } from "./lib/api/slices/finance";
 import { settingsApi } from "./lib/api/slices/settings";
+import { supplierApi } from "./lib/api/slices/suppliers";
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     [invoiceApi.reducerPath]: invoiceApi.reducer,
     [financeApi.reducerPath]: financeApi.reducer,
      [settingsApi.reducerPath]: settingsApi.reducer,
+    [supplierApi.reducerPath]: supplierApi.reducer,
   },
   middleware: (getDefault) =>
     getDefault().concat(
@@ -20,6 +22,7 @@ export const store = configureStore({
       purchaseApi.middleware,
       invoiceApi.middleware,
       financeApi.middleware,
-      settingsApi.middleware
+      settingsApi.middleware,
+      supplierApi.middleware
     ),
 });

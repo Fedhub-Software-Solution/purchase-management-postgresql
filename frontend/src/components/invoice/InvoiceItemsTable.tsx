@@ -46,7 +46,7 @@ export function InvoiceItemsTable({
               !isCreateMode ? "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20" : ""
             }`}>
               {isCreateMode && <TableHead className="font-semibold">PO#</TableHead>}
-              <TableHead className="font-semibold">
+              <TableHead className="font-semibold w-[320px]">
                 {isCreateMode ? "Item Name" : "Description"}
               </TableHead>
               <TableHead className="font-semibold">Model</TableHead>
@@ -76,7 +76,7 @@ export function InvoiceItemsTable({
                       </Badge>
                     </TableCell>
                   )}
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium align-top whitespace-normal break-words max-w-[320px]">
                     {isEditing ? (
                       <Input
                         value={item.name}
@@ -86,7 +86,9 @@ export function InvoiceItemsTable({
                       />
                     ) : (
                       <div>
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-medium whitespace-normal break-words leading-5">
+                          {item.name}
+                        </p>
                         {!isCreateMode && (item as any).poNumber && (
                           <p className="text-xs text-muted-foreground">
                             PO: {(item as any).poNumber}

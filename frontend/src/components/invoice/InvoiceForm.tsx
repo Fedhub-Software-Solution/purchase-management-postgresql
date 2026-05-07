@@ -149,6 +149,34 @@ export function InvoiceForm({
                 }`}
               >
                 <div className="space-y-2">
+                  <Label htmlFor="invoiceNumber" className="flex items-center space-x-1">
+                    <span>Invoice Number</span>
+                    {isEditMode && <span className="text-red-500">*</span>}
+                  </Label>
+                  <Input
+                    id="invoiceNumber"
+                    type="text"
+                    value={formData.invoiceNumber}
+                    onChange={(e) =>
+                      onFormDataChange({
+                        ...formData,
+                        invoiceNumber: e.target.value,
+                      })
+                    }
+                    placeholder={
+                      isCreateMode
+                        ? "Leave blank to auto-generate"
+                        : "Enter invoice number"
+                    }
+                    className={`bg-white/70 dark:bg-gray-800/70 ${
+                      isEditMode
+                        ? "border-green-200 dark:border-green-700 focus:border-green-500"
+                        : "border-blue-200 dark:border-blue-700 focus:border-blue-500"
+                    }`}
+                    required={isEditMode}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="client" className="flex items-center space-x-1">
                     <span>Client</span>
                     <span className="text-red-500">*</span>
@@ -198,7 +226,6 @@ export function InvoiceForm({
                     onChange={(e) =>
                       onFormDataChange({ ...formData, dueDate: e.target.value })
                     }
-                    min={new Date().toISOString().split("T")[0]}
                     className={`bg-white/70 dark:bg-gray-800/70 ${
                       isEditMode
                         ? "border-green-200 dark:border-green-700 focus:border-green-500"
@@ -440,6 +467,7 @@ export function InvoiceForm({
                 disabled={
                   isLoading ||
                   selectedItems.length === 0 ||
+                  (isEditMode && !formData.invoiceNumber.trim()) ||
                   !formData.clientId ||
                   !formData.dueDate ||
                   (isCreateMode && selectedPurchases.length === 0)

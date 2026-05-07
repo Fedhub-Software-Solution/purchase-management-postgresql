@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Purchase, Client, PurchaseItem } from "../types";
+import { Purchase, Supplier, Client, PurchaseItem } from "../types";
 import { DEFAULT_CURRENCY } from "../utils/currency";
 
 // RTK Query hooks
@@ -11,6 +11,7 @@ import {
   useDeletePurchaseMutation,
 } from "../lib/api/slices/purchases";
 import { useListClientsQuery } from "../lib/api/slices/clients";
+import { useListSuppliersQuery } from "../lib/api/slices/suppliers";
 
 // Sub-components
 import { PurchaseList } from "./purchase/PurchaseList";
@@ -29,6 +30,7 @@ import type {
 } from "./purchase/types";
 
 export function PurchaseManagement() {
+  const today = new Date().toISOString().split("T")[0];
   const [currentView, setCurrentView] = useState<
     "list" | "add" | "edit" | "view"
   >("list");
@@ -38,13 +40,15 @@ export function PurchaseManagement() {
   const [filters, setFilters] = useState<PurchaseFilters>({
     search: "",
     status: "all",
-    client: "all",
+    supplier: "all",
     sortBy: "createdAt",
     sortOrder: "desc",
   });
 
   const [formData, setFormData] = useState<PurchaseFormData>({
+    supplierId: "",
     clientId: "",
+    date: today,
     status: "pending",
     notes: "",
   });
@@ -68,12 +72,39 @@ export function PurchaseManagement() {
   });
   const purchases: Purchase[] = purchaseData?.items ?? [];
 
+  const { data: supplierData } = useListSuppliersQuery({ limit: 500 });
+  const suppliers: Supplier[] = supplierData?.items ?? [];
   const { data: clientData } = useListClientsQuery({ limit: 500 });
   const clients: Client[] = clientData?.items ?? [];
+  const supplierOptions = useMemo(
+    () => suppliers.filter((s) => s.status === "active").map((s) => s.name).filter(Boolean).sort(),
+    [suppliers]
+  );
 
-  const clientMap = useMemo(
-    () => new Map(clients.map((c) => [c.id, c])),
-    [clients]
+  const supplierMap = useMemo(
+    () => new Map(suppliers.map((s) => [s.id, s])),
+    [suppliers]
+  );
+  const supplierByNameMap = useMemo(
+    () =>
+      new Map(
+        suppliers
+          .filter((s) => s.name)
+          .map((s) => [String(s.name).trim().toLowerCase(), s])
+      ),
+    [suppliers]
+  );
+
+  const resolveSupplier = useCallback(
+    (purchase: Purchase): Supplier | undefined => {
+      const byId = supplierMap.get(purchase.supplierId || "");
+      if (byId) return byId;
+      const firstItemSupplier = String(purchase.items?.[0]?.supplier || "")
+        .trim()
+        .toLowerCase();
+      return firstItemSupplier ? supplierByNameMap.get(firstItemSupplier) : undefined;
+    },
+    [supplierMap, supplierByNameMap]
   );
 
   // Mutations
@@ -87,18 +118,21 @@ export function PurchaseManagement() {
   // Filtered and sorted purchases
   const filteredAndSortedPurchases = useMemo(() => {
     let filtered = purchases.filter((purchase) => {
-      const client = clientMap.get(purchase.clientId);
+      const supplier = resolveSupplier(purchase);
+      const supplierNameFallback = purchase.items?.[0]?.supplier || "";
       const matchesSearch =
         purchase.poNumber.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (client?.company || "").toLowerCase().includes(filters.search.toLowerCase()) ||
+        (supplier?.name || supplierNameFallback).toLowerCase().includes(filters.search.toLowerCase()) ||
         (purchase.notes || "").toLowerCase().includes(filters.search.toLowerCase());
 
       const matchesStatus =
         filters.status === "all" || purchase.status === filters.status;
-      const matchesClient =
-        filters.client === "all" || purchase.clientId === filters.client;
+      const matchesSupplier =
+        filters.supplier === "all" ||
+        purchase.supplierId === filters.supplier ||
+        supplier?.id === filters.supplier;
 
-      return matchesSearch && matchesStatus && matchesClient;
+      return matchesSearch && matchesStatus && matchesSupplier;
     });
 
     // Sort the filtered results
@@ -110,6 +144,25 @@ export function PurchaseManagement() {
         case "poNumber":
           aValue = a.poNumber;
           bValue = b.poNumber;
+          break;
+        case "supplier": {
+          const aSupplier = resolveSupplier(a);
+          const bSupplier = resolveSupplier(b);
+          aValue = (
+            aSupplier?.name ||
+            a.items?.[0]?.supplier ||
+            ""
+          ).toLowerCase();
+          bValue = (
+            bSupplier?.name ||
+            b.items?.[0]?.supplier ||
+            ""
+          ).toLowerCase();
+          break;
+        }
+        case "status":
+          aValue = String(a.status || "").toLowerCase();
+          bValue = String(b.status || "").toLowerCase();
           break;
         case "createdAt":
           aValue = a.createdAt as any;
@@ -130,11 +183,17 @@ export function PurchaseManagement() {
     });
 
     return filtered;
-  }, [purchases, clientMap, filters]);
+  }, [purchases, filters, resolveSupplier]);
 
   // Handlers
   const resetForm = () => {
-    setFormData({ clientId: "", status: "pending", notes: "" });
+    setFormData({
+      supplierId: "",
+      clientId: "",
+      date: today,
+      status: "pending",
+      notes: "",
+    });
     setItems([]);
     setNewItem({
       name: "",
@@ -165,11 +224,15 @@ export function PurchaseManagement() {
     const total = subtotal + tax;
 
     try {
+      const normalizedClientId = formData.clientId?.trim()
+        ? formData.clientId
+        : undefined;
       if (editingPurchase) {
         await updatePurchase({
           id: editingPurchase.id,
           patch: {
             ...formData,
+            clientId: normalizedClientId,
             items: purchaseItems,
             subtotal,
             tax,
@@ -183,6 +246,7 @@ export function PurchaseManagement() {
         await createPurchase({
           poNumber: generatePONumber(poNumbers),
           ...formData,
+          clientId: normalizedClientId,
           items: purchaseItems,
           subtotal,
           tax,
@@ -205,7 +269,11 @@ export function PurchaseManagement() {
   const handleEdit = (purchase: Purchase) => {
     setEditingPurchase(purchase);
     setFormData({
-      clientId: purchase.clientId,
+      supplierId: purchase.supplierId || "",
+      clientId: purchase.clientId || "",
+      date:
+        (purchase as any).date ||
+        new Date(purchase.createdAt as any).toISOString().split("T")[0],
       status: purchase.status,
       notes: purchase.notes || "",
     });
@@ -336,8 +404,8 @@ export function PurchaseManagement() {
       <PurchaseList
         purchases={purchases}
         filteredPurchases={filteredAndSortedPurchases}
-        clients={clients}
-        clientMap={clientMap}
+        suppliers={suppliers}
+        supplierMap={supplierMap}
         filters={filters}
         onFiltersChange={setFilters}
         onView={handleView}
@@ -365,6 +433,8 @@ export function PurchaseManagement() {
         showBulkImport={showBulkImport}
         onBulkImportToggle={setShowBulkImport}
         onBulkImport={handleBulkImport}
+        supplierOptions={supplierOptions}
+        suppliers={suppliers}
         clients={clients}
         isLoading={isCreating || isUpdating}
         onSubmit={handleSubmit}
@@ -375,11 +445,30 @@ export function PurchaseManagement() {
   }
 
   if (currentView === "view" && viewPurchase) {
-    const client = clientMap.get(viewPurchase.clientId);
+    const supplier =
+      resolveSupplier(viewPurchase) ||
+      ({
+        id: "",
+        name: viewPurchase.items?.[0]?.supplier || "N/A",
+        supplierCode: "",
+        panNumber: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        gstin: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        categories: [],
+        status: "active",
+        notes: "",
+        createdAt: new Date(),
+      } as Supplier);
     return (
       <PurchaseView
         purchase={viewPurchase}
-        client={client}
+        supplier={supplier}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onBack={handleCancel}

@@ -10,6 +10,23 @@ export async function nextInvoiceNumber(): Promise<string> {
   return result?.next_invoice_number || `INV-${new Date().getFullYear()}-0001`;
 }
 
+export function formatDateOnly(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+export function normalizeDateOnlyInput(value: any): string | undefined {
+  return formatDateOnly(value);
+}
+
 // Helper to convert database rows to Invoice with items
 export async function rowToInvoice(row: any): Promise<Invoice> {
   // Fetch invoice items
@@ -30,8 +47,8 @@ export async function rowToInvoice(row: any): Promise<Invoice> {
     clientId: row.client_id,
     purchaseId: purchaseIds.length > 0 ? purchaseIds[0].purchase_id : "", // legacy compatibility
     poNumber: items.length > 0 ? items[0].po_number || "" : "",
-    date: row.date ? new Date(row.date).toISOString().split("T")[0] : new Date(row.created_at).toISOString().split("T")[0],
-    dueDate: row.due_date ? new Date(row.due_date).toISOString().split("T")[0] : new Date(row.created_at).toISOString().split("T")[0],
+    date: formatDateOnly(row.date) || formatDateOnly(row.created_at) || "",
+    dueDate: formatDateOnly(row.due_date) || formatDateOnly(row.created_at) || "",
     status: row.status,
     items: items.map((item: any) => ({
       id: item.id,

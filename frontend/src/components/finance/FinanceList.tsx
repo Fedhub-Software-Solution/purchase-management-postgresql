@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { GlassCard } from "../GlassCard";
 import { CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -20,6 +21,9 @@ import {
   Receipt,
   UploadCloud,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Breadcrumb } from "../Breadcrumb";
 import { fmtINR, getStatusColor, getTypeColor } from "./utils";
@@ -53,10 +57,91 @@ export function FinanceList({
   isFetching,
   isDeleting,
 }: FinanceListProps) {
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<
+    "category" | "description" | "spentBy" | "amount" | "reimbursed" | "pending" | "date" | "status"
+  >("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const spentByLabel = (r: any) =>
+    String(
+      (r as any).amountSpentBy ??
+        (r as any).amountSpentByName ??
+        (r as any).amount_spent_by ??
+        (r as any).amount_spent_by_name ??
+        ""
+    ).trim() || "—";
+
   const breadcrumbItems = [
     { label: "Home", onClick: () => {} },
     { label: "Finance", onClick: () => {} },
   ];
+
+  const sortedRecords = useMemo(() => {
+    const getValue = (r: any) => {
+      switch (sortBy) {
+        case "category":
+          return String(r.category || "").toLowerCase();
+        case "description":
+          return String(r.description || "").toLowerCase();
+        case "spentBy":
+          return String(spentByLabel(r) || "").toLowerCase();
+        case "status":
+          return String(r.status || "").toLowerCase();
+        case "amount":
+          return Number(r.amount || 0);
+        case "reimbursed":
+          return Number((r as any).reimbursedAmount || 0);
+        case "pending":
+          return Number(
+            (r as any).pendingAmount ??
+              r.amount - ((r as any).reimbursedAmount != null ? Number((r as any).reimbursedAmount) : 0)
+          );
+        case "date":
+        default:
+          return r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime();
+      }
+    };
+    return filteredRecords.slice().sort((a, b) => {
+      const aVal = getValue(a);
+      const bVal = getValue(b);
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredRecords, sortBy, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedRecords = useMemo(
+    () => sortedRecords.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [sortedRecords, safePage]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredRecords.length, sortBy, sortOrder]);
+
+  const toggleSort = (
+    column: "category" | "description" | "spentBy" | "amount" | "reimbursed" | "pending" | "date" | "status"
+  ) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder(
+      column === "category" || column === "description" || column === "spentBy" || column === "status"
+        ? "asc"
+        : "desc"
+    );
+  };
+  const sortIcon = (
+    column: "category" | "description" | "spentBy" | "amount" | "reimbursed" | "pending" | "date" | "status"
+  ) => {
+    if (sortBy !== column) return <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />;
+    return sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />;
+  };
 
   return (
     <motion.div
@@ -123,14 +208,58 @@ export function FinanceList({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-white/5">
-                    <TableHead>Type</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Tax Year</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("category")}>
+                        Category
+                        {sortIcon("category")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("description")}>
+                        Description
+                        {sortIcon("description")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("spentBy")}>
+                        Amount spent by
+                        {sortIcon("spentBy")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("amount")}>
+                        Amount Spent
+                        {sortIcon("amount")}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex justify-end">
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("reimbursed")}>
+                          Reimbursed
+                          {sortIcon("reimbursed")}
+                        </Button>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex justify-end">
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("pending")}>
+                          Pending
+                          {sortIcon("pending")}
+                        </Button>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("date")}>
+                        Date
+                        {sortIcon("date")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("status")}>
+                        Status
+                        {sortIcon("status")}
+                      </Button>
+                    </TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -145,39 +274,17 @@ export function FinanceList({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredRecords
-                      .slice()
-                      .sort((a, b) => b.date.getTime() - a.date.getTime())
-                      .map((r) => (
+                    paginatedRecords.map((r) => (
                         <TableRow key={r.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`p-1.5 rounded-md ${
-                                  r.type === "invested"
-                                    ? "bg-green-100 dark:bg-green-900/20"
-                                    : r.type === "expense"
-                                    ? "bg-red-100 dark:bg-red-900/20"
-                                    : "bg-orange-100 dark:bg-orange-900/20"
-                                }`}
-                              >
-                                {r.type === "invested" ? (
-                                  <Wallet className="w-3 h-3 text-green-600" />
-                                ) : r.type === "expense" ? (
-                                  <TrendingDown className="w-3 h-3 text-red-600" />
-                                ) : (
-                                  <Receipt className="w-3 h-3 text-orange-600" />
-                                )}
-                              </div>
-                              <Badge className={getTypeColor(r.type)}>
-                                {r.type.charAt(0).toUpperCase() + r.type.slice(1)}
-                              </Badge>
-                            </div>
-                          </TableCell>
                           <TableCell className="font-medium">{r.category}</TableCell>
                           <TableCell className="max-w-xs">
                             <div className="truncate" title={r.description}>
                               {r.description}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[120px]">
+                            <div className="truncate" title={spentByLabel(r) === "—" ? "" : spentByLabel(r)}>
+                              {spentByLabel(r)}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -194,10 +301,19 @@ export function FinanceList({
                               {fmtINR(r.amount)}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {r.paymentMethod}
-                            </Badge>
+                          <TableCell className="text-right text-sm">
+                            {(r as any).reimbursedAmount != null
+                              ? fmtINR(Number((r as any).reimbursedAmount))
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium">
+                            {fmtINR(
+                              (r as any).pendingAmount ??
+                                r.amount -
+                                  ((r as any).reimbursedAmount != null
+                                    ? Number((r as any).reimbursedAmount)
+                                    : 0)
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">
                             {r.date.toLocaleDateString("en-IN", {
@@ -208,9 +324,6 @@ export function FinanceList({
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(r.status)}>{r.status}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {(r as any).taxYear || "-"}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
@@ -238,6 +351,36 @@ export function FinanceList({
                   )}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {filteredRecords.length > PAGE_SIZE && (
+            <div className="px-4 py-3 border-t grid grid-cols-3 items-center">
+              <p className="text-sm text-muted-foreground justify-self-start">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}-
+                {Math.min(safePage * PAGE_SIZE, filteredRecords.length)} of {filteredRecords.length} records
+              </p>
+              <div className="flex items-center gap-2 justify-self-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {safePage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+              <div />
             </div>
           )}
         </CardContent>

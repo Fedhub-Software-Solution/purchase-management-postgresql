@@ -90,6 +90,18 @@ export function ClientManagement() {
           aValue = a.company;
           bValue = b.company;
           break;
+        case "contactPerson":
+          aValue = a.contactPerson;
+          bValue = b.contactPerson;
+          break;
+        case "email":
+          aValue = a.email;
+          bValue = b.email;
+          break;
+        case "phone":
+          aValue = a.phone;
+          bValue = b.phone;
+          break;
         case "createdAt": {
           const aC = (a as any).createdAt;
           const bC = (b as any).createdAt;
@@ -100,6 +112,10 @@ export function ClientManagement() {
         case "city":
           aValue = a.billingAddress.city;
           bValue = b.billingAddress.city;
+          break;
+        case "status":
+          aValue = String((a.status as any) || "");
+          bValue = String((b.status as any) || "");
           break;
         default:
           aValue = a.company;

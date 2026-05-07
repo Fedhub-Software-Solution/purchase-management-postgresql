@@ -45,6 +45,16 @@ echo "✓ Functions created"
 psql -U "$DB_USER" -d "$DB_NAME" -f database/migrations/004_views.sql
 echo "✓ Views created"
 
+psql -U "$DB_USER" -d "$DB_NAME" -f database/migrations/005_suppliers.sql
+echo "✓ Suppliers created"
+
+psql -U "$DB_USER" -d "$DB_NAME" -f database/migrations/006_supplier_details.sql
+echo "✓ Supplier details created"
+
+psql -U "$DB_USER" -d "$DB_NAME" -f database/migrations/007_supplier_pan_and_purchase_supplier.sql
+psql -U "$DB_USER" -d "$DB_NAME" -f database/migrations/008_finance_reimbursement.sql
+echo "✓ Supplier PAN and purchase supplier mapping created"
+
 echo ""
 echo "=========================================="
 echo "Database setup complete!"

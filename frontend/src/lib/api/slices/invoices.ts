@@ -25,6 +25,19 @@ const toIso = (v: any): string => {
   }
 };
 
+const toDateOnly = (v: any): string => {
+  if (!v) return "";
+  if (typeof v === "string") {
+    const m = v.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = v instanceof Date ? v : new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+};
+
 /**
  * Ensure every invoice has a display-ready invoiceNumber.
  * If the server didn't provide one, we create a stable fallback:
@@ -50,14 +63,14 @@ const normalizeInvoice = (inv: any): Invoice => ({
   invoiceNumber: ensureInvoiceNumber(inv),
   createdAt: toIso(inv?.createdAt),
   updatedAt: toIso(inv?.updatedAt ?? inv?.createdAt),
-  dueDate: toIso(inv?.dueDate),
+  dueDate: toDateOnly(inv?.dueDate),
 });
 
 /** ---- API ---- */
 export type CreateInvoiceRequest = Omit<
   Invoice,
   "id" | "createdAt" | "updatedAt" | "invoiceNumber"
-> & { purchaseIds?: string[] };
+> & { purchaseIds?: string[]; invoiceNumber?: string };
 
 // export type UpdateInvoiceRequest = Partial<
 //   Omit<Invoice, "id" | "createdAt" | "updatedAt" | "invoiceNumber">

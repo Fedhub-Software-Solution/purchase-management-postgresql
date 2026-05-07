@@ -18,10 +18,24 @@ export const paymentMethods = ['Bank Transfer', 'UPI', 'Credit Card', 'Debit Car
 export const toDate = (iso?: string | Date) => {
   if (!iso) return new Date();
   if (iso instanceof Date) return iso;
-  return new Date(iso);
+  const value = String(iso).trim();
+  const datePrefix = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (datePrefix) {
+    const year = Number(datePrefix[1]);
+    const month = Number(datePrefix[2]) - 1;
+    const day = Number(datePrefix[3]);
+    // Keep finance dates as calendar dates (avoid timezone day shifts).
+    return new Date(year, month, day, 12, 0, 0, 0);
+  }
+  return new Date(value);
 };
 
-export const yyyyMmDd = (d: Date) => d.toISOString().slice(0, 10);
+export const yyyyMmDd = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const fmtINR = (n: number) =>
   new Intl.NumberFormat('en-IN', {

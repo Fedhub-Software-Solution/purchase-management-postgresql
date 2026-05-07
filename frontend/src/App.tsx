@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { ClientManagement } from './components/ClientManagement';
 import { PurchaseManagement } from './components/PurchaseManagement';
+import { SupplierManagement } from './components/SupplierManagement';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { FinanceManagement } from './components/FinanceManagement';
 import { Settings } from './components/Settings';
@@ -130,7 +131,7 @@ export default function App() {
   // Show loading state while checking auth
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-full min-h-0 bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading...</p>
@@ -157,6 +158,8 @@ export default function App() {
         return <ClientManagement />;
       case 'purchases':
         return <PurchaseManagement />;
+      case 'suppliers':
+        return <SupplierManagement />;
       case 'invoices':
         return <InvoiceManagement />;
       case 'finance':
@@ -169,7 +172,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+    <div className="h-full min-h-0 bg-background relative overflow-hidden flex flex-col">
       <AnimatedBackground />
       
       {/* Full Width Header */}
@@ -180,9 +183,9 @@ export default function App() {
         onLogout={handleLogout}
       />
       
-      {/* Layout with Sidebar and Main Content */}
-      <div className="flex-1 flex">
-        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+      {/* Main content scrolls here; header stays above (flex + full-height shell) */}
+      <div className="relative z-10 flex-1 min-h-0 overflow-hidden">
+        <Layout>
           <PageTransition currentPage={currentPage}>
             {renderPage()}
           </PageTransition>

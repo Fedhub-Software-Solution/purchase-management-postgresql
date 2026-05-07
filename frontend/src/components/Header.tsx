@@ -10,13 +10,18 @@ import {
   Plus,
   Home,
   LogOut,
-  Menu,
-  BarChart3
+  ShoppingCart,
+  FileText,
+  Wallet,
+  Building2,
+  Truck,
+  Users,
+  Link2
 } from 'lucide-react';
 
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +36,6 @@ import {
   PopoverTrigger,
 } from './ui/popover';
 import { GlassCard } from './GlassCard';
-import { StatusIndicator } from './StatusIndicator';
 import { HeaderBackground } from './HeaderBackground';
 
 interface HeaderProps {
@@ -44,14 +48,6 @@ interface HeaderProps {
   onLogout?: () => void;
 }
 
-const pageNames: Record<string, string> = {
-  dashboard: 'Dashboard',
-  clients: 'Client Management',
-  purchases: 'Purchase Management',
-  invoices: 'Invoice Management',
-  settings: 'Settings',
-};
-
 const quickActions = [
   { id: 'new-purchase', label: 'New Purchase', icon: Plus },
   { id: 'new-client', label: 'New Client', icon: User },
@@ -60,6 +56,7 @@ const quickActions = [
 
 export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProps) {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const [notifications] = useState([
     { id: 1, title: 'New purchase order approved', time: '2 min ago', unread: true },
     { id: 2, title: 'Invoice payment received', time: '1 hour ago', unread: true },
@@ -73,19 +70,31 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
     document.documentElement.classList.toggle('dark');
   };
 
-
+  const topMenus = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'purchases', label: 'Purchases', icon: ShoppingCart },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'finance', label: 'Finance', icon: Wallet },
+  ] as const;
+  const activeMenuClass =
+    "!bg-gradient-to-b !from-zinc-800 !via-zinc-900 !to-black !text-amber-100 border border-zinc-700/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_2px_8px_rgba(0,0,0,0.35)] hover:!from-zinc-700 hover:!via-zinc-800 hover:!to-zinc-950";
+  const inactiveMenuClass =
+    "bg-white/20 dark:bg-zinc-800/40 border border-amber-200/40 dark:border-amber-500/20 text-zinc-800 dark:text-zinc-100 hover:bg-white/40 dark:hover:bg-zinc-700/50";
 
   return (
     <motion.header
-      className="sticky top-0 z-50 w-full"
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="relative z-50 w-full shrink-0"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
     >
-      <GlassCard className="rounded-none border-0 border-b border-white/20 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 relative">
+      <GlassCard
+        hover={false}
+        className="rounded-none border-0 border-b border-amber-200/40 dark:border-amber-500/20 backdrop-blur-xl bg-gradient-to-r from-zinc-50/95 via-amber-50/70 to-zinc-100/95 dark:from-zinc-900/95 dark:via-zinc-800/90 dark:to-zinc-900/95 relative"
+      >
         <HeaderBackground />
-        <div className="flex h-16 items-center justify-between px-6 relative z-10">
-          {/* Left Section - Company Branding and Current Page */}
+        <div className="flex h-20 items-center justify-between px-6 relative z-10">
+          {/* Left Section - Company Branding */}
           <div className="flex items-center space-x-6">
             {/* Company Branding */}
             <motion.div 
@@ -97,28 +106,85 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
               <motion.div
                 whileHover={{ rotate: 360, scale: 1.1 }}
                 transition={{ duration: 0.3 }}
-                className="p-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm"
+                className="p-0"
               >
-                <BarChart3 className="w-7 h-7 text-blue-600" />
+                {!logoLoadFailed ? (
+                  <img
+                    src="/header-logo.png"
+                    alt="FedHub logo"
+                    className="w-10 h-10 object-contain"
+                    onError={() => setLogoLoadFailed(true)}
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full border border-zinc-500/60 bg-gradient-to-br from-zinc-300 to-zinc-500 dark:from-zinc-600 dark:to-zinc-800 flex items-center justify-center">
+                    <Link2 className="w-5 h-5 text-zinc-900 dark:text-zinc-100" />
+                  </div>
+                )}
               </motion.div>
               <div>
-                <motion.h1 
-                  className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                >
-                  FedHub Software Solutions
-                </motion.h1>
-                <p className="text-sm text-muted-foreground">Purchase Management System</p>
+                <p className="text-lg md:text-xl font-bold tracking-wide text-zinc-800 dark:text-amber-100">
+                  Purchase Management System
+                </p>
               </div>
             </motion.div>
-
-
           </div>
 
-          {/* Center Section - Spacer */}
-          <div className="flex-1"></div>
+          {/* Center Section - Main Navigation */}
+          <div className="hidden lg:flex flex-1 items-center justify-center gap-2 px-6">
+            {topMenus.map((menu) => {
+              const Icon = menu.icon;
+              const isActive = currentPage === menu.id;
+              return (
+                <Button
+                  key={menu.id}
+                  variant={isActive ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => onPageChange(menu.id)}
+                  className={isActive ? activeMenuClass : inactiveMenuClass}
+                >
+                  <Icon className="h-4 w-4 mr-1.5" />
+                  {menu.label}
+                </Button>
+              );
+            })}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={
+                    currentPage === 'settings' || currentPage === 'suppliers' || currentPage === 'clients'
+                      ? "default"
+                      : "ghost"
+                  }
+                  size="sm"
+                  className={
+                    currentPage === 'settings' || currentPage === 'suppliers' || currentPage === 'clients'
+                      ? activeMenuClass
+                      : inactiveMenuClass
+                  }
+                >
+                  <Settings className="h-4 w-4 mr-1.5" />
+                  Settings
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="backdrop-blur-xl bg-white/90 dark:bg-gray-900/90 border-white/20">
+                <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onPageChange('settings')}>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Enterprise Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onPageChange('suppliers')}>
+                  <Truck className="h-4 w-4 mr-2" />
+                  Suppliers
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onPageChange('clients')}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Clients
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Right Section - Status, Actions and User Menu */}
           <motion.div
@@ -134,7 +200,7 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 border-0"
+                  className="bg-gradient-to-r from-zinc-900 to-zinc-700 text-amber-100 hover:from-zinc-800 hover:to-zinc-600 border-0"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Quick Actions
@@ -159,7 +225,7 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
                 variant="ghost"
                 size="sm"
                 onClick={toggleTheme}
-                className="relative overflow-hidden bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-800/50"
+                className="relative overflow-hidden bg-white/20 dark:bg-zinc-800/40 border border-amber-200/40 dark:border-amber-500/20 hover:bg-white/40 dark:hover:bg-zinc-700/50"
               >
                 <motion.div
                   initial={false}
@@ -182,7 +248,7 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    className="relative bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-800/50"
+                    className="relative bg-white/20 dark:bg-zinc-800/40 border border-amber-200/40 dark:border-amber-500/20 hover:bg-white/40 dark:hover:bg-zinc-700/50"
                   >
                     <Bell className="h-4 w-4" />
                     {unreadCount > 0 && (
@@ -229,10 +295,10 @@ export function Header({ currentPage, onPageChange, user, onLogout }: HeaderProp
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-800/50 p-0">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-white/20 dark:bg-zinc-800/40 border border-amber-200/40 dark:border-amber-500/20 hover:bg-white/40 dark:hover:bg-zinc-700/50 p-0">
                     <Avatar className="h-8 w-8">
                       {/* <AvatarImage src="/api/placeholder/32/32" alt="User" /> */}
-                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                      <AvatarFallback className="bg-gradient-to-r from-zinc-900 to-zinc-700 text-amber-100">
                         {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
                       </AvatarFallback>
                     </Avatar>

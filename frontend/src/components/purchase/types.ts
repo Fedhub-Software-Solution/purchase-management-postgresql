@@ -1,15 +1,17 @@
-import type { Purchase, Client, PurchaseItem } from '../../types';
+import type { Purchase, Supplier, PurchaseItem } from '../../types';
 
 export type PurchaseFilters = {
   search: string;
   status: string;
-  client: string;
-  sortBy: 'poNumber' | 'createdAt' | 'total';
+  supplier: string;
+  sortBy: 'poNumber' | 'createdAt' | 'total' | 'supplier' | 'status';
   sortOrder: 'asc' | 'desc';
 };
 
 export type PurchaseFormData = {
+  supplierId: string;
   clientId: string;
+  date: string;
   status: Purchase['status'];
   notes: string;
 };
@@ -27,8 +29,8 @@ export type NewItemFormData = {
 export interface PurchaseListProps {
   purchases: Purchase[];
   filteredPurchases: Purchase[];
-  clients: Client[];
-  clientMap: Map<string, Client>;
+  suppliers: Supplier[];
+  supplierMap: Map<string, Supplier>;
   filters: PurchaseFilters;
   onFiltersChange: (filters: PurchaseFilters) => void;
   onView: (purchase: Purchase) => void;

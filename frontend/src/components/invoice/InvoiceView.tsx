@@ -31,9 +31,32 @@ interface InvoiceViewProps {
 }
 
 export function InvoiceView({ invoice, clients, onBack }: InvoiceViewProps) {
+  const formatUiDate = (value: any) => {
+    if (!value) return "—";
+    if (typeof value === "string") {
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return d.toLocaleDateString();
+      }
+    }
+    const d = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+  };
   const client = clients.find((c) => c.id === invoice.clientId);
   const { data: settings } = useGetSettingsQuery();
   if (!client) return null;
+  const company = {
+    companyName: settings?.companyName || "FedHub Software Solutions",
+    companyEmail: settings?.companyEmail || "info@fedhubsoftware.com",
+    companyPhone: settings?.companyPhone || "+91 9003285428",
+    companyAddress:
+      settings?.companyAddress ||
+      "P No 69,70 Gokula Nandhana, Gokul Nagar, Hosur, Krishnagiri-DT, Tamil Nadu, India-635109",
+    companyGST: settings?.companyGST || "33CUUPA9347J1Z4",
+    companyPAN: settings?.companyPAN || "AAJFF8051D",
+    companyMSME: settings?.companyMSME || "UDYAM-TN-11-0105606",
+  };
 
   const invoiceItems = invoice.items ?? [];
   const poIds =
@@ -83,24 +106,28 @@ export function InvoiceView({ invoice, clients, onBack }: InvoiceViewProps) {
                 </Badge>
               </div>
               <div className="text-right space-y-1">
+                <div className="flex justify-end mb-2">
+                  <img
+                    src="/fedhub-logo.png"
+                    alt="Fedhub Logo"
+                    className="h-12 w-auto object-contain"
+                  />
+                </div>
                 <h2 className="text-xl font-semibold text-blue-600">
-                  FedHub Software Solutions
+                  {company.companyName}
                 </h2>
-                <p className="text-sm">P No 69,70 Gokula Nandhana, Gokul Nagar</p>
-                <p className="text-sm">
-                  Hosur, Krishnagiri-DT, Tamil Nadu, India-635109
-                </p>
-                <p className="text-sm text-blue-600">info@fedhubsoftware.com</p>
-                <p className="text-sm font-medium">+91 9003285428</p>
+                <p className="text-sm">{company.companyAddress}</p>
+                <p className="text-sm text-blue-600">{company.companyEmail}</p>
+                <p className="text-sm font-medium">{company.companyPhone}</p>
                 <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
                   <p className="text-xs text-muted-foreground">
-                    GST: <span className="font-mono">33AACCF2123P1Z5</span>
+                    GST: <span className="font-mono">{company.companyGST}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    PAN: <span className="font-mono">AACCF2123P</span>
+                    PAN: <span className="font-mono">{company.companyPAN}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    MSME: <span className="font-mono">UDYAM-TN-06-0012345</span>
+                    MSME: <span className="font-mono">{company.companyMSME}</span>
                   </p>
                 </div>
               </div>
@@ -143,19 +170,13 @@ export function InvoiceView({ invoice, clients, onBack }: InvoiceViewProps) {
                   <div className="flex justify-between">
                     <span className="font-medium">Invoice Date:</span>
                     <span>
-                      {(invoice.createdAt instanceof Date
-                        ? invoice.createdAt
-                        : new Date(invoice.createdAt)
-                      ).toLocaleDateString()}
+                      {formatUiDate(invoice.createdAt)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Due Date:</span>
                     <span className="font-medium text-red-600">
-                      {(invoice.dueDate instanceof Date
-                        ? invoice.dueDate
-                        : new Date(invoice.dueDate)
-                      ).toLocaleDateString()}
+                      {formatUiDate(invoice.dueDate)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -198,7 +219,7 @@ export function InvoiceView({ invoice, clients, onBack }: InvoiceViewProps) {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
-                      <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="font-semibold w-[320px]">Description</TableHead>
                       <TableHead className="font-semibold">Model</TableHead>
                       <TableHead className="font-semibold">Supplier</TableHead>
                       <TableHead className="font-semibold text-center">Qty</TableHead>
@@ -214,9 +235,11 @@ export function InvoiceView({ invoice, clients, onBack }: InvoiceViewProps) {
                         key={`${item.id ?? index}-${index}`}
                         className="hover:bg-muted/50"
                       >
-                        <TableCell>
+                        <TableCell className="align-top whitespace-normal break-words max-w-[320px]">
                           <div>
-                            <p className="font-medium">{item.name}</p>
+                            <p className="font-medium whitespace-normal break-words leading-5">
+                              {item.name}
+                            </p>
                             {(item as any).poNumber && (
                               <p className="text-xs text-muted-foreground">
                                 PO: {(item as any).poNumber}

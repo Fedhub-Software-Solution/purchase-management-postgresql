@@ -16,8 +16,8 @@ export type FinanceFormData = {
   date: string; // yyyy-mm-dd
   paymentMethod: string;
   status: FinStatus;
-  reference: string;
-  taxYear: string;
+  /** Optional: who the amount was spent by */
+  amountSpentBy: string;
 };
 
 export interface FinanceListProps {

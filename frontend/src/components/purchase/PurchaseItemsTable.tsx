@@ -42,7 +42,7 @@ export function PurchaseItemsTable({
         <Table>
           <TableHeader>
             <TableRow className={mode === "view" ? "bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700" : ""}>
-              <TableHead className={mode === "form" ? "w-[180px]" : ""}>Item Name</TableHead>
+              <TableHead className={mode === "form" ? "w-[260px] whitespace-normal" : "whitespace-normal"}>Item Name</TableHead>
               <TableHead className={mode === "form" ? "w-[120px]" : ""}>Model</TableHead>
               <TableHead className={mode === "form" ? "w-[140px]" : ""}>Supplier</TableHead>
               <TableHead className={`${mode === "form" ? "w-[80px]" : ""} text-center`}>
@@ -68,7 +68,9 @@ export function PurchaseItemsTable({
                   transition={{ duration: 0.2 }}
                   className={mode === "view" ? "hover:bg-gray-50 dark:hover:bg-gray-700/50" : "hover:bg-gray-50 dark:hover:bg-gray-700/50"}
                 >
-                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="font-medium whitespace-normal break-words align-top leading-5">
+                    {item.name}
+                  </TableCell>
                   <TableCell className={mode === "form" ? "text-gray-600 dark:text-gray-400" : "text-muted-foreground"}>
                     {item.model}
                   </TableCell>

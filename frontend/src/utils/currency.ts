@@ -36,6 +36,37 @@ export function convertCurrency(amount: number, fromCurrency: string, toCurrency
   return inrAmount * toRate;
 }
 
+/**
+ * Amount digits only: grouping and decimal places follow the currency’s locale rules.
+ * No currency symbol or code (use when the code is shown elsewhere, e.g. PDF “Curr.” column).
+ */
+export function formatCurrencyDigits(
+  amount: number | null | undefined,
+  currencyCode: string = DEFAULT_CURRENCY
+): string {
+  const num = Number.isFinite(amount as number) ? (amount as number) : 0;
+  switch (currencyCode) {
+    case 'INR':
+      return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'USD':
+    case 'AUD':
+    case 'CAD':
+    case 'SGD':
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'EUR':
+      return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'GBP':
+      return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'JPY':
+    case 'CNY':
+      return num.toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    case 'CHF':
+      return num.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    default:
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+}
+
 export function formatCurrency(amount: number | null | undefined, currencyCode: string = DEFAULT_CURRENCY): string {
   const currency = getCurrencyInfo(currencyCode);
   

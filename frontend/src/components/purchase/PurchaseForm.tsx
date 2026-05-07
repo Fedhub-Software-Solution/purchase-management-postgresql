@@ -24,7 +24,7 @@ import {
   Upload,
 } from "lucide-react";
 import { formatCurrency, DEFAULT_CURRENCY, getExchangeRateDisclaimer } from "../../utils/currency";
-import type { Purchase, Client, PurchaseItem } from "../../types";
+import type { Purchase, Supplier, Client, PurchaseItem } from "../../types";
 import { PurchaseItemsTable } from "./PurchaseItemsTable";
 import { AddItemForm } from "./AddItemForm";
 import { BulkImportDialog } from "./BulkImportDialog";
@@ -43,6 +43,8 @@ interface PurchaseFormProps {
   showBulkImport: boolean;
   onBulkImportToggle: (show: boolean) => void;
   onBulkImport: (items: Omit<PurchaseItem, "id" | "total">[]) => void;
+  supplierOptions: string[];
+  suppliers: Supplier[];
   clients: Client[];
   isLoading: boolean;
   onSubmit: () => void;
@@ -62,6 +64,8 @@ export function PurchaseForm({
   showBulkImport,
   onBulkImportToggle,
   onBulkImport,
+  supplierOptions,
+  suppliers,
   clients,
   isLoading,
   onSubmit,
@@ -110,22 +114,54 @@ export function PurchaseForm({
                 <h3 className="text-lg font-medium">Basic Information</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 border rounded-xl bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-900/10 dark:to-cyan-900/10 border-blue-200 dark:border-blue-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6 border rounded-xl bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-900/10 dark:to-cyan-900/10 border-blue-200 dark:border-blue-800">
                 <div className="space-y-2">
-                  <Label htmlFor="client" className="flex items-center space-x-1">
-                    <span>Client</span>
+                  <Label htmlFor="supplier" className="flex items-center space-x-1">
+                    <span>Supplier</span>
                     <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={formData.clientId}
+                    value={formData.supplierId}
                     onValueChange={(value: string) =>
-                      onFormDataChange({ ...formData, clientId: value })
+                      onFormDataChange({ ...formData, supplierId: value })
                     }
                   >
                     <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-blue-200 dark:border-blue-700 focus:border-blue-500">
-                      <SelectValue placeholder="Select client" />
+                      <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
+                      {suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{supplier.name}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {supplier.contactPerson}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="client" className="flex items-center space-x-1">
+                    <span>Client</span>
+                    <span className="text-muted-foreground text-xs">(optional)</span>
+                  </Label>
+                  <Select
+                    value={formData.clientId || "__none__"}
+                    onValueChange={(value: string) =>
+                      onFormDataChange({
+                        ...formData,
+                        clientId: value === "__none__" ? "" : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-blue-200 dark:border-blue-700 focus:border-blue-500">
+                      <SelectValue placeholder="Select client (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No client</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           <div className="flex flex-col">
@@ -138,6 +174,21 @@ export function PurchaseForm({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="targetDate" className="flex items-center space-x-1">
+                    <span>Target Date</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="targetDate"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) =>
+                      onFormDataChange({ ...formData, date: e.target.value })
+                    }
+                    className="bg-white/70 dark:bg-gray-800/70 border-blue-200 dark:border-blue-700 focus:border-blue-500"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status" className="flex items-center space-x-1">
@@ -203,6 +254,7 @@ export function PurchaseForm({
 
               <AddItemForm
                 newItem={newItem}
+                supplierOptions={supplierOptions}
                 onItemChange={onNewItemChange}
                 onSave={onSaveItem}
               />

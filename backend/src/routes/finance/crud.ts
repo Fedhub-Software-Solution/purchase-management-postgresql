@@ -3,19 +3,53 @@ import { Request, Response } from "express";
 import { query, queryOne } from "../../database.js";
 import { handleDbError } from "../../common.js";
 
+function formatDateOnly(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return undefined;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  }
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(
+      value.getDate()
+    ).padStart(2, "0")}`;
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
 // Helper to convert database row to API format
 function rowToFinanceRecord(row: any) {
+  const amount = Number(row.amount || 0);
+  const reimbursed =
+    row.reimbursed_amount != null && row.reimbursed_amount !== ""
+      ? Number(row.reimbursed_amount)
+      : 0;
   return {
     id: row.id,
     type: row.type,
     category: row.category,
-    amount: Number(row.amount || 0),
+    amount,
     description: row.description || "",
-    date: row.date ? new Date(row.date).toISOString().split("T")[0] : new Date(row.created_at).toISOString().split("T")[0],
+    date: formatDateOnly(row.date) || formatDateOnly(row.created_at),
     paymentMethod: row.payment_method || "",
     status: row.status,
     reference: row.reference || undefined,
     taxYear: row.tax_year || undefined,
+    amountSpentBy: row.amount_spent_by || undefined,
+    reimbursedAmount:
+      row.reimbursed_amount != null && row.reimbursed_amount !== ""
+        ? Number(row.reimbursed_amount)
+        : undefined,
+    pendingAmount: amount - reimbursed,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
   };
@@ -30,11 +64,19 @@ export async function createFinanceRecord(req: Request, res: Response) {
     const body: any = req.body ?? {};
     const date = body.date || new Date().toISOString().split("T")[0];
 
+    const reimbursed =
+      body.reimbursedAmount !== undefined &&
+      body.reimbursedAmount !== null &&
+      body.reimbursedAmount !== ""
+        ? Number(body.reimbursedAmount)
+        : null;
+
     const result = await queryOne(
       `INSERT INTO finance_records (
         type, category, amount, description, date,
-        payment_method, status, reference, tax_year
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        payment_method, status, reference, tax_year,
+        amount_spent_by, reimbursed_amount
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         body.type,
@@ -46,6 +88,10 @@ export async function createFinanceRecord(req: Request, res: Response) {
         body.status || "completed",
         body.reference || null,
         body.taxYear || null,
+        body.amountSpentBy != null && String(body.amountSpentBy).trim() !== ""
+          ? String(body.amountSpentBy).trim()
+          : null,
+        reimbursed,
       ]
     );
 
@@ -107,6 +153,22 @@ export async function updateFinanceRecord(req: Request, res: Response) {
     if (body.taxYear !== undefined) {
       updates.push(`tax_year = $${paramCount++}`);
       values.push(body.taxYear || null);
+    }
+    if (body.amountSpentBy !== undefined) {
+      updates.push(`amount_spent_by = $${paramCount++}`);
+      const v = body.amountSpentBy;
+      values.push(
+        v != null && String(v).trim() !== "" ? String(v).trim() : null
+      );
+    }
+    if (body.reimbursedAmount !== undefined) {
+      updates.push(`reimbursed_amount = $${paramCount++}`);
+      const r = body.reimbursedAmount;
+      values.push(
+        r === null || r === "" || (typeof r === "string" && r.trim() === "")
+          ? null
+          : Number(r)
+      );
     }
 
     if (updates.length === 0) {

@@ -11,13 +11,22 @@ import type { FinanceRecord as ApiFinanceRecord, FinStatus, FinType } from "../l
 import { FinanceOverview } from "./finance/FinanceOverview";
 import { FinanceForm } from "./finance/FinanceForm";
 import { FinanceList } from "./finance/FinanceList";
+import { FinanceReimbursedTable } from "./finance/FinanceReimbursedTable";
+import { FinanceBulkUploadDialog } from "./finance/FinanceBulkUploadDialog";
 import { categoryOptions, toDate, yyyyMmDd } from "./finance/utils";
 import type { FinanceFilters, FinanceFormData } from "./finance/types";
 
 export function FinanceManagement() {
-  const [currentView, setCurrentView] = useState<"overview" | "form" | "records">("overview");
+  const [currentView, setCurrentView] = useState<
+    "overview" | "form" | "records" | "reimbursed"
+  >("overview");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkPreviewRows, setBulkPreviewRows] = useState<any[]>([]);
+  const [bulkValidationErrors, setBulkValidationErrors] = useState<string[]>([]);
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
 
   const [filters, setFilters] = useState<FinanceFilters>({
     searchTerm: "",
@@ -35,8 +44,7 @@ export function FinanceManagement() {
     date: yyyyMmDd(new Date()),
     paymentMethod: "",
     status: "completed",
-    reference: "",
-    taxYear: "",
+    amountSpentBy: "",
   });
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -109,7 +117,10 @@ export function FinanceManagement() {
         r.description.toLowerCase().includes(s) ||
         r.category.toLowerCase().includes(s) ||
         r.paymentMethod.toLowerCase().includes(s) ||
-        (r.reference || "").toLowerCase().includes(s);
+        (r.reference || "").toLowerCase().includes(s) ||
+        String((r as any).amountSpentBy || "")
+          .toLowerCase()
+          .includes(s);
 
       const typeMatch = filters.typeFilter === "all" || r.type === filters.typeFilter;
       const categoryMatch = filters.categoryFilter === "all" || r.category === filters.categoryFilter;
@@ -151,8 +162,7 @@ export function FinanceManagement() {
       date: yyyyMmDd(new Date()),
       paymentMethod: "",
       status: "completed",
-      reference: "",
-      taxYear: "",
+      amountSpentBy: "",
     });
 
   const startCreate = () => {
@@ -173,8 +183,7 @@ export function FinanceManagement() {
       date: yyyyMmDd(toDate(r.date)),
       paymentMethod: r.paymentMethod ?? "",
       status: r.status as FinStatus,
-      reference: r.reference ?? "",
-      taxYear: r.taxYear ?? "",
+      amountSpentBy: r.amountSpentBy ?? "",
     });
     setCurrentView("form");
   };
@@ -190,12 +199,11 @@ export function FinanceManagement() {
       category: formData.category,
       amount: Number(formData.amount || 0),
       description: formData.description,
-      date: new Date(formData.date).toISOString(),
+      // Send date-only value to avoid timezone offsets during save/read.
+      date: formData.date,
       paymentMethod: formData.paymentMethod,
       status: formData.status,
-      reference:
-        formData.reference || `${formData.type.toUpperCase()}-${Date.now().toString().slice(-6)}`,
-      taxYear: formData.type === "tds" ? formData.taxYear : undefined,
+      amountSpentBy: formData.amountSpentBy?.trim() || undefined,
     };
 
     try {
@@ -223,10 +231,75 @@ export function FinanceManagement() {
     }
   };
 
+  const updateReimbursedInline = async (
+    record: ApiFinanceRecord,
+    reimbursedAmount: number,
+    context?: { groupReimbursed: number }
+  ) => {
+    try {
+      const currentRecordReimbursed = Number((record as any).reimbursedAmount || 0);
+      const groupedCurrent = Number(context?.groupReimbursed || currentRecordReimbursed);
+      const delta = reimbursedAmount - groupedCurrent;
+      const nextRecordReimbursed = Math.max(0, currentRecordReimbursed + delta);
+      await updateFinance({
+        id: record.id,
+        data: { reimbursedAmount: nextRecordReimbursed },
+      }).unwrap();
+      toast.success("Reimbursed amount updated");
+      await Promise.all([refetchList(), refetchStats()]);
+    } catch (err: any) {
+      toast.error(err?.data?.error || err?.message || "Failed to update reimbursed amount");
+    }
+  };
+
   // Bulk Upload
-  const onBulkUploadClick = () => uploadInputRef.current?.click();
+  const onBulkUploadClick = () => {
+    setIsBulkUploadOpen(true);
+    setBulkFileName("");
+    setBulkPreviewRows([]);
+    setBulkValidationErrors([]);
+  };
+  const chooseBulkFile = () => uploadInputRef.current?.click();
+  const downloadBulkTemplate = () => {
+    const template = [
+      "category,amount,description,date,paymentMethod,status,amountSpentBy",
+      "Supplies,100000,Board Room - INEL advance for Supplier,2026-05-05,Bank Transfer,pending,Aravind",
+      "Infrastructure,250000,Server rack setup,2026-05-01,Bank Transfer,completed,Operations Team",
+    ].join("\n");
+
+    const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "finance-import-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const parseCSV = (text: string) => {
+    const normalizeDateForImport = (raw: any): string => {
+      const value = String(raw || "").trim();
+      if (!value) return yyyyMmDd(new Date());
+
+      // Already normalized yyyy-mm-dd
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+      // dd/mm/yyyy or dd-mm-yyyy
+      const dmy = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmy) {
+        const dd = dmy[1].padStart(2, "0");
+        const mm = dmy[2].padStart(2, "0");
+        const yyyy = dmy[3];
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      // Fallback: native parsing
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? yyyyMmDd(new Date()) : yyyyMmDd(parsed);
+    };
+
     const lines = text
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -234,27 +307,55 @@ export function FinanceManagement() {
 
     if (lines.length === 0) return [];
 
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const idx = (k: string) => header.indexOf(k);
+    const normalizeHeader = (v: string) =>
+      String(v || "")
+        .replace(/^\uFEFF/, "") // strip UTF-8 BOM if present
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+    const header = lines[0].split(",").map((h) => h.trim());
+    const headerIndex = new Map<string, number>();
+    header.forEach((h, i) => headerIndex.set(normalizeHeader(h), i));
+    const idx = (...keys: string[]) => {
+      for (const key of keys) {
+        const i = headerIndex.get(normalizeHeader(key));
+        if (i !== undefined) return i;
+      }
+      return -1;
+    };
+    const col = (cols: string[], ...keys: string[]) => {
+      const i = idx(...keys);
+      return i >= 0 ? cols[i] : "";
+    };
 
     const rows = lines.slice(1).map((line) => line.split(","));
-    return rows.map((cols) => ({
-      type: (cols[idx("type")] || "").trim() as FinType,
-      category: (cols[idx("category")] || "").trim(),
-      amount: Number((cols[idx("amount")] || "0").trim()),
-      description: (cols[idx("description")] || "").trim(),
-      date: new Date((cols[idx("date")] || "").trim()).toISOString(),
-      paymentMethod: (cols[idx("paymentmethod")] || cols[idx("payment_method")] || "").trim(),
-      status: ((cols[idx("status")] || "completed").trim() as FinStatus) || "completed",
-      reference: (cols[idx("reference")] || "").trim(),
-      taxYear: (cols[idx("taxyear")] || cols[idx("tax_year")] || "").trim() || undefined,
-    }));
+    return rows.map((cols) => {
+      return {
+        type: "expense" as FinType,
+        category: col(cols, "category").trim(),
+        amount: Number((col(cols, "amount") || "0").trim()),
+        description: col(cols, "description").trim(),
+        date: normalizeDateForImport(col(cols, "date")),
+        paymentMethod: col(cols, "paymentMethod", "payment_method", "payment method").trim(),
+        status: ((col(cols, "status") || "completed").trim() as FinStatus) || "completed",
+        amountSpentBy:
+          col(
+            cols,
+            "amountSpentBy",
+            "amount_spent_by",
+            "amount spent by",
+            "amount spent by name",
+            "spent by",
+            "spent by name"
+          ).trim() || undefined,
+      };
+    });
   };
 
   const handleBulkFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setBulkFileName(file.name);
 
     try {
       const text = await file.text();
@@ -276,26 +377,87 @@ export function FinanceManagement() {
       }
 
       const normalized = records.map((r, i) => ({
-        type: (r.type || "expense") as FinType,
+        // keep date-only string to avoid timezone shifts
+        date:
+          (() => {
+            const v = String(r.date || "").trim();
+            if (!v) return yyyyMmDd(new Date());
+            if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+            const dmy = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+            const d = new Date(v);
+            return Number.isNaN(d.getTime()) ? yyyyMmDd(new Date()) : yyyyMmDd(d);
+          })(),
+        type: "expense" as FinType,
         category: r.category || "",
         amount: Number(r.amount || 0),
         description: r.description || `Imported record #${i + 1}`,
-        date: new Date(r.date || new Date()).toISOString(),
         paymentMethod: r.paymentMethod || "Bank Transfer",
         status: (r.status || "completed") as FinStatus,
-        reference:
-          r.reference || `${(r.type || "EXP").toString().toUpperCase()}-${Date.now().toString().slice(-6)}`,
-        taxYear: r.taxYear || undefined,
+        amountSpentBy:
+          r.amountSpentBy ??
+          r.amountSpentByName ??
+          r.amount_spent_by ??
+          r.amount_spent_by_name ??
+          undefined,
       }));
 
+      // Validate before submit so user can review and fix issues first.
+      const validationErrors: string[] = [];
+      const invalidDateRows: number[] = [];
+      normalized.forEach((rec, i) => {
+        const d = String(rec.date || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(new Date(d).getTime())) {
+          invalidDateRows.push(i + 2);
+        }
+        if (!String(rec.category || "").trim()) validationErrors.push(`Row ${i + 2}: category is required`);
+        if (!String(rec.description || "").trim())
+          validationErrors.push(`Row ${i + 2}: description is required`);
+        if (!String(rec.paymentMethod || "").trim())
+          validationErrors.push(`Row ${i + 2}: payment method is required`);
+        if (!Number.isFinite(Number(rec.amount)) || Number(rec.amount) <= 0)
+          validationErrors.push(`Row ${i + 2}: amount must be greater than 0`);
+      });
+      if (invalidDateRows.length > 0) {
+        validationErrors.push(
+          `Invalid date format in row(s): ${invalidDateRows.join(
+            ", "
+          )}. Use YYYY-MM-DD or DD/MM/YYYY.`
+        );
+      }
+
+      setBulkPreviewRows(normalized);
+      setBulkValidationErrors(validationErrors);
+      if (validationErrors.length > 0) {
+        toast.error("Validation failed. Please fix the file and re-upload.");
+      } else {
+        toast.success(`Validation passed. ${normalized.length} record(s) ready to import.`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Bulk upload failed");
+    }
+  };
+
+  const submitBulkImport = async () => {
+    if (bulkPreviewRows.length === 0) {
+      toast.error("Please choose a file first.");
+      return;
+    }
+    if (bulkValidationErrors.length > 0) {
+      toast.error("Please fix validation errors before submitting import.");
+      return;
+    }
+
+    setIsBulkSubmitting(true);
+    try {
       toast.message("Bulk upload started", {
-        description: `Uploading ${normalized.length} records…`,
+        description: `Uploading ${bulkPreviewRows.length} records…`,
       });
 
       let ok = 0;
       let fail = 0;
       /* eslint-disable no-await-in-loop */
-      for (const rec of normalized) {
+      for (const rec of bulkPreviewRows) {
         try {
           await createFinance(rec).unwrap();
           ok++;
@@ -312,8 +474,15 @@ export function FinanceManagement() {
       } else {
         toast.warning(`Bulk upload finished: ${ok} succeeded, ${fail} failed`);
       }
+
+      setIsBulkUploadOpen(false);
+      setBulkFileName("");
+      setBulkPreviewRows([]);
+      setBulkValidationErrors([]);
     } catch (err: any) {
       toast.error(err?.message || "Bulk upload failed");
+    } finally {
+      setIsBulkSubmitting(false);
     }
   };
 
@@ -356,10 +525,21 @@ export function FinanceManagement() {
           onEdit={startEdit}
           onDelete={confirmDelete}
           onCreateNew={startCreate}
-          onViewFullTable={() => setCurrentView("records")}
+          onViewReimbursed={() => setCurrentView("reimbursed")}
           onBulkUploadClick={onBulkUploadClick}
           isFetching={isFetching}
           isDeleting={removing}
+        />
+        <FinanceBulkUploadDialog
+          open={isBulkUploadOpen}
+          onOpenChange={setIsBulkUploadOpen}
+          onDownloadTemplate={downloadBulkTemplate}
+          onChooseFile={chooseBulkFile}
+          selectedFileName={bulkFileName}
+          previewRows={bulkPreviewRows}
+          validationErrors={bulkValidationErrors}
+          onSubmitImport={submitBulkImport}
+          isSubmitting={isBulkSubmitting}
         />
       </>
     );
@@ -383,6 +563,17 @@ export function FinanceManagement() {
           onSubmit={handleSubmit}
           onCancel={() => setCurrentView("overview")}
           onBulkUploadClick={onBulkUploadClick}
+        />
+        <FinanceBulkUploadDialog
+          open={isBulkUploadOpen}
+          onOpenChange={setIsBulkUploadOpen}
+          onDownloadTemplate={downloadBulkTemplate}
+          onChooseFile={chooseBulkFile}
+          selectedFileName={bulkFileName}
+          previewRows={bulkPreviewRows}
+          validationErrors={bulkValidationErrors}
+          onSubmitImport={submitBulkImport}
+          isSubmitting={isBulkSubmitting}
         />
       </>
     );
@@ -418,6 +609,48 @@ export function FinanceManagement() {
           onBulkUploadClick={onBulkUploadClick}
           isFetching={isFetching}
           isDeleting={removing}
+        />
+        <FinanceBulkUploadDialog
+          open={isBulkUploadOpen}
+          onOpenChange={setIsBulkUploadOpen}
+          onDownloadTemplate={downloadBulkTemplate}
+          onChooseFile={chooseBulkFile}
+          selectedFileName={bulkFileName}
+          previewRows={bulkPreviewRows}
+          validationErrors={bulkValidationErrors}
+          onSubmitImport={submitBulkImport}
+          isSubmitting={isBulkSubmitting}
+        />
+      </>
+    );
+  }
+
+  if (currentView === "reimbursed") {
+    return (
+      <>
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept=".csv,.json,application/json,text/csv"
+          className="hidden"
+          onChange={handleBulkFile}
+        />
+        <FinanceReimbursedTable
+          records={financeData}
+          onBack={() => setCurrentView("overview")}
+          onUpdateReimbursed={updateReimbursedInline}
+          isUpdating={updating}
+        />
+        <FinanceBulkUploadDialog
+          open={isBulkUploadOpen}
+          onOpenChange={setIsBulkUploadOpen}
+          onDownloadTemplate={downloadBulkTemplate}
+          onChooseFile={chooseBulkFile}
+          selectedFileName={bulkFileName}
+          previewRows={bulkPreviewRows}
+          validationErrors={bulkValidationErrors}
+          onSubmitImport={submitBulkImport}
+          isSubmitting={isBulkSubmitting}
         />
       </>
     );

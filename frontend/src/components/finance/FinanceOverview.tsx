@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { GlassCard } from "../GlassCard";
 import { CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -16,14 +17,16 @@ import {
   Edit,
   Trash2,
   Wallet,
-  TrendingDown,
-  Receipt,
+  BadgeIndianRupee,
   UploadCloud,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Breadcrumb } from "../Breadcrumb";
 import { FinanceKPIs } from "./FinanceKPIs";
 import { FinanceFilters } from "./FinanceFilters";
-import { fmtINR, getStatusColor, getTypeColor } from "./utils";
+import { fmtINR, getStatusColor } from "./utils";
 
 interface FinanceOverviewProps {
   records: any[];
@@ -40,7 +43,7 @@ interface FinanceOverviewProps {
   onEdit: (record: any) => void;
   onDelete: (recordId: string) => void;
   onCreateNew: () => void;
-  onViewFullTable: () => void;
+  onViewReimbursed?: () => void;
   onBulkUploadClick?: () => void;
   isFetching: boolean;
   isDeleting: boolean;
@@ -56,13 +59,94 @@ export function FinanceOverview({
   onEdit,
   onDelete,
   onCreateNew,
-  onViewFullTable,
+  onViewReimbursed,
   onBulkUploadClick,
   isFetching,
   isDeleting,
 }: FinanceOverviewProps) {
+  const spentByLabel = (r: any) =>
+    String(
+      (r as any).amountSpentBy ??
+        (r as any).amountSpentByName ??
+        (r as any).amount_spent_by ??
+        (r as any).amount_spent_by_name ??
+        ""
+    ).trim() || "—";
+
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<
+    "description" | "spentBy" | "category" | "amount" | "date" | "paymentMethod" | "status"
+  >("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const breadcrumbItems = [{ label: "Home", onClick: () => {} }];
   const noData = records.length === 0;
+  const sortedRecords = useMemo(
+    () =>
+      filteredRecords.slice().sort((a, b) => {
+        const getValue = (r: any) => {
+          switch (sortBy) {
+            case "description":
+              return String(r.description || "").toLowerCase();
+            case "spentBy":
+              return String(spentByLabel(r) || "").toLowerCase();
+            case "category":
+              return String(r.category || "").toLowerCase();
+            case "amount":
+              return Number(r.amount || 0);
+            case "paymentMethod":
+              return String(r.paymentMethod || "").toLowerCase();
+            case "status":
+              return String(r.status || "").toLowerCase();
+            case "date":
+            default:
+              return r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime();
+          }
+        };
+        const aVal = getValue(a);
+        const bVal = getValue(b);
+        if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      }),
+    [filteredRecords, sortBy, sortOrder]
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedRecords = useMemo(
+    () => sortedRecords.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [sortedRecords, safePage]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredRecords.length, sortBy, sortOrder]);
+
+  const toggleSort = (
+    column: "description" | "spentBy" | "category" | "amount" | "date" | "paymentMethod" | "status"
+  ) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder(
+      column === "description" ||
+        column === "spentBy" ||
+        column === "category" ||
+        column === "paymentMethod" ||
+        column === "status"
+        ? "asc"
+        : "desc"
+    );
+  };
+
+  const sortIcon = (
+    column: "description" | "spentBy" | "category" | "amount" | "date" | "paymentMethod" | "status"
+  ) => {
+    if (sortBy !== column) return <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />;
+    return sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />;
+  };
 
   return (
     <motion.div
@@ -80,6 +164,16 @@ export function FinanceOverview({
           </h1> */}
         </div>
         <div className="flex items-center gap-3">
+          {onViewReimbursed && (
+            <Button
+              variant="outline"
+              className="border-purple-200 text-purple-700 hover:bg-purple-50"
+              onClick={onViewReimbursed}
+            >
+              <BadgeIndianRupee className="w-4 h-4 mr-2" />
+              Reimbursed
+            </Button>
+          )}
           {onBulkUploadClick && (
             <Button
               variant="outline"
@@ -127,11 +221,6 @@ export function FinanceOverview({
             <CardTitle className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Finance Records
             </CardTitle>
-            {!noData && (
-              <Button variant="outline" onClick={onViewFullTable}>
-                View Full Table
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -146,50 +235,65 @@ export function FinanceOverview({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRecords
-                    .slice()
-                    .sort((a, b) => b.date.getTime() - a.date.getTime())
-                    .slice(0, 10)
-                    .map((r) => (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("description")}>
+                          Description
+                          {sortIcon("description")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("spentBy")}>
+                          Amount spent by
+                          {sortIcon("spentBy")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("category")}>
+                          Category
+                          {sortIcon("category")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("amount")}>
+                          Amount
+                          {sortIcon("amount")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("date")}>
+                          Date
+                          {sortIcon("date")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("paymentMethod")}>
+                          Payment Method
+                          {sortIcon("paymentMethod")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => toggleSort("status")}>
+                          Status
+                          {sortIcon("status")}
+                        </Button>
+                      </TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedRecords.map((r) => (
                       <TableRow key={r.id} className="hover:bg-muted/50">
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`p-2 rounded-lg ${
-                                r.type === "invested"
-                                  ? "bg-green-100 dark:bg-green-900/20"
-                                  : r.type === "expense"
-                                  ? "bg-red-100 dark:bg-red-900/20"
-                                  : "bg-orange-100 dark:bg-orange-900/20"
-                              }`}
-                            >
-                              {r.type === "invested" ? (
-                                <Wallet className="w-4 h-4 text-green-600" />
-                              ) : r.type === "expense" ? (
-                                <TrendingDown className="w-4 h-4 text-red-600" />
-                              ) : (
-                                <Receipt className="w-4 h-4 text-orange-600" />
-                              )}
-                            </div>
-                            <span className="capitalize font-medium">{r.type}</span>
+                        <TableCell className="font-medium">{r.description}</TableCell>
+                        <TableCell className="text-sm max-w-[120px]">
+                          <div className="truncate" title={spentByLabel(r) === "—" ? "" : spentByLabel(r)}>
+                            {spentByLabel(r)}
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">{r.description}</TableCell>
                         <TableCell>{r.category}</TableCell>
                         <TableCell>
                           <span
@@ -237,8 +341,41 @@ export function FinanceOverview({
                         </TableCell>
                       </TableRow>
                     ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {sortedRecords.length > PAGE_SIZE && (
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pt-1">
+                  <p className="text-sm text-muted-foreground justify-self-start whitespace-nowrap">
+                    Showing {(safePage - 1) * PAGE_SIZE + 1}-
+                    {Math.min(safePage * PAGE_SIZE, sortedRecords.length)} of{" "}
+                    {sortedRecords.length} records
+                  </p>
+                  <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={safePage <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground px-2">
+                      Page {safePage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safePage >= totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                  <div />
+                </div>
+              )}
             </div>
           )}
         </CardContent>

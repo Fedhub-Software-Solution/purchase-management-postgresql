@@ -2,7 +2,12 @@
 import { Request, Response } from "express";
 import { query, queryOne, transaction } from "../../database.js";
 import { handleDbError } from "../../common.js";
-import { rowToInvoice, nextInvoiceNumber } from "./helpers.js";
+import {
+  rowToInvoice,
+  nextInvoiceNumber,
+  formatDateOnly,
+  normalizeDateOnlyInput,
+} from "./helpers.js";
 
 /**
  * GET /api/invoices/:id
@@ -35,8 +40,8 @@ export async function createInvoice(req: Request, res: Response) {
           : await nextInvoiceNumber();
 
       // Parse dates
-      const date = payload.date || new Date().toISOString().split("T")[0];
-      const dueDate = payload.dueDate || date;
+      const date = normalizeDateOnlyInput(payload.date) || formatDateOnly(new Date());
+      const dueDate = normalizeDateOnlyInput(payload.dueDate) || date;
 
       // Insert invoice
       const invoiceResult = await client.query(
@@ -132,11 +137,11 @@ export async function updateInvoice(req: Request, res: Response) {
       }
       if (payload.date !== undefined) {
         updates.push(`date = $${paramCount++}`);
-        values.push(payload.date);
+        values.push(normalizeDateOnlyInput(payload.date) || payload.date);
       }
       if (payload.dueDate !== undefined) {
         updates.push(`due_date = $${paramCount++}`);
-        values.push(payload.dueDate);
+        values.push(normalizeDateOnlyInput(payload.dueDate) || payload.dueDate);
       }
       if (payload.status !== undefined) {
         updates.push(`status = $${paramCount++}`);

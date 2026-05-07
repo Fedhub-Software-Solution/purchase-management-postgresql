@@ -101,7 +101,7 @@ export function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+    <div className="h-full min-h-0 overflow-y-auto relative flex items-center justify-center p-4">
       <AnimatedBackground />
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}

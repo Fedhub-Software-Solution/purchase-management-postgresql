@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -20,23 +21,32 @@ import {
 import {
   Plus,
   Eye,
+  Download,
   Edit,
   Trash2,
   ShoppingCart,
   Package,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { formatCurrency, DEFAULT_CURRENCY } from "../../utils/currency";
 import { formatDate } from "../../utils/datetime";
-import type { Purchase, Client } from "../../types";
-import { getStatusColor, getStatusIcon } from "./utils";
+import type { Purchase, Supplier } from "../../types";
+import {
+  downloadPurchasePDF,
+  getStatusColor,
+  getStatusIcon,
+} from "./utils";
 import { PurchaseFilters } from "./PurchaseFilters";
 import type { PurchaseFilters as PurchaseFiltersType } from "./types";
+import { useGetSettingsQuery } from "../../lib/api/slices/settings";
 
 interface PurchaseListProps {
   purchases: Purchase[];
   filteredPurchases: Purchase[];
-  clients: Client[];
-  clientMap: Map<string, Client>;
+  suppliers: Supplier[];
+  supplierMap: Map<string, Supplier>;
   filters: PurchaseFiltersType;
   onFiltersChange: (filters: PurchaseFiltersType) => void;
   onView: (purchase: Purchase) => void;
@@ -51,8 +61,8 @@ interface PurchaseListProps {
 export function PurchaseList({
   purchases,
   filteredPurchases,
-  clients,
-  clientMap,
+  suppliers,
+  supplierMap,
   filters,
   onFiltersChange,
   onView,
@@ -63,9 +73,41 @@ export function PurchaseList({
   isDeleting,
   isUpdating,
 }: PurchaseListProps) {
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const { data: settings } = useGetSettingsQuery();
   const hasActiveFilters =
-    filters.search || filters.status !== "all" || filters.client !== "all";
-    const breadcrumbItems = [{ label: "Home", onClick: () => {} }];
+    filters.search || filters.status !== "all" || filters.supplier !== "all";
+  const breadcrumbItems = [{ label: "Home", onClick: () => {} }];
+  const totalPages = Math.max(1, Math.ceil(filteredPurchases.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedPurchases = useMemo(
+    () => filteredPurchases.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredPurchases, safePage]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredPurchases.length]);
+
+  const toggleColumnSort = (
+    sortBy: "poNumber" | "createdAt" | "total" | "supplier" | "status"
+  ) => {
+    const nextOrder =
+      filters.sortBy === sortBy && filters.sortOrder === "asc" ? "desc" : "asc";
+    onFiltersChange({ ...filters, sortBy, sortOrder: nextOrder });
+  };
+
+  const getSortIcon = (
+    sortBy: "poNumber" | "createdAt" | "total" | "supplier" | "status"
+  ) => {
+    if (filters.sortBy !== sortBy) return <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />;
+    return filters.sortOrder === "asc" ? (
+      <ArrowUp className="w-3.5 h-3.5" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5" />
+    );
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -98,40 +140,8 @@ export function PurchaseList({
       <PurchaseFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
-        clients={clients}
+        suppliers={suppliers}
       />
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.15 }}
-        className="flex items-center justify-between bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4"
-      >
-        <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
-            <ShoppingCart className="w-5 h-5 text-purple-600" />
-          </div>
-          <div>
-            <h3 className="font-medium">Purchase Details</h3>
-            <p className="text-sm text-muted-foreground">
-              Comprehensive purchase order overview
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="bg-white/70 dark:bg-gray-800/70">
-            {filteredPurchases.length} of {purchases.length} Purchases
-          </Badge>
-          {hasActiveFilters && (
-            <Badge
-              variant="secondary"
-              className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-            >
-              Filtered
-            </Badge>
-          )}
-        </div>
-      </motion.div>
 
       <Card>
         <CardHeader>
@@ -166,21 +176,82 @@ export function PurchaseList({
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>PO#</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                <TableHeader className="bg-zinc-900/85 [&_tr]:border-zinc-700">
+                  <TableRow className="hover:bg-zinc-900/85">
+                    <TableHead className="bg-zinc-900/85 text-zinc-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-1 text-zinc-100 hover:bg-zinc-700/50 hover:text-zinc-100"
+                        onClick={() => toggleColumnSort("poNumber")}
+                      >
+                        PO#
+                        {getSortIcon("poNumber")}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="bg-zinc-900/85 text-zinc-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-1 text-zinc-100 hover:bg-zinc-700/50 hover:text-zinc-100"
+                        onClick={() => toggleColumnSort("supplier")}
+                      >
+                        Supplier
+                        {getSortIcon("supplier")}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="bg-zinc-900/85 text-zinc-100">Items</TableHead>
+                    <TableHead className="bg-zinc-900/85 text-right text-zinc-100">
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-1 text-zinc-100 hover:bg-zinc-700/50 hover:text-zinc-100"
+                          onClick={() => toggleColumnSort("total")}
+                        >
+                          Total
+                          {getSortIcon("total")}
+                        </Button>
+                      </div>
+                    </TableHead>
+                    <TableHead className="bg-zinc-900/85 text-zinc-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-1 text-zinc-100 hover:bg-zinc-700/50 hover:text-zinc-100"
+                        onClick={() => toggleColumnSort("status")}
+                      >
+                        Status
+                        {getSortIcon("status")}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="bg-zinc-900/85 text-zinc-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-1 text-zinc-100 hover:bg-zinc-700/50 hover:text-zinc-100"
+                        onClick={() => toggleColumnSort("createdAt")}
+                      >
+                        Date
+                        {getSortIcon("createdAt")}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="bg-zinc-900/85 text-center text-zinc-100">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <AnimatePresence>
-                    {filteredPurchases.map((purchase, index) => {
-                      const client = clientMap.get(purchase.clientId);
+                    {paginatedPurchases.map((purchase, index) => {
+                      const supplier =
+                        supplierMap.get(purchase.supplierId || "") ||
+                        suppliers.find(
+                          (s) =>
+                            String(s.name || "").trim().toLowerCase() ===
+                            String(purchase.items?.[0]?.supplier || "").trim().toLowerCase()
+                        );
+                      const supplierName = supplier?.name || purchase.items?.[0]?.supplier || "-";
+                      const supplierContact =
+                        supplier?.contactPerson || (supplier ? "" : purchase.items?.[0]?.supplier || "");
                       return (
                         <motion.tr
                           key={purchase.id}
@@ -197,9 +268,9 @@ export function PurchaseList({
                           </TableCell>
                           <TableCell className="font-medium">
                             <div>
-                              <div className="font-medium">{client?.company}</div>
+                              <div className="font-medium">{supplierName}</div>
                               <div className="text-sm text-muted-foreground">
-                                {client?.contactPerson}
+                                {supplierContact}
                               </div>
                             </div>
                           </TableCell>
@@ -249,6 +320,45 @@ export function PurchaseList({
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      onClick={() =>
+                                        downloadPurchasePDF(
+                                          purchase,
+                                          supplier ||
+                                            ({
+                                              id: "",
+                                              name: purchase.items?.[0]?.supplier || "N/A",
+                                              supplierCode: "",
+                                              panNumber: "",
+                                              contactPerson: "",
+                                              email: "",
+                                              phone: "",
+                                              gstin: "",
+                                              address: "",
+                                              city: "",
+                                              state: "",
+                                              pincode: "",
+                                              categories: [],
+                                              status: "active",
+                                              notes: "",
+                                              createdAt: new Date(),
+                                            } as Supplier),
+                                          settings
+                                        )
+                                      }
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Download PDF</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => onEdit(purchase)}
                                       disabled={isUpdating}
                                     >
@@ -283,6 +393,37 @@ export function PurchaseList({
                   </AnimatePresence>
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {filteredPurchases.length > PAGE_SIZE && (
+            <div className="mt-4 grid grid-cols-3 items-center">
+              <p className="text-sm text-muted-foreground justify-self-start">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}-
+                {Math.min(safePage * PAGE_SIZE, filteredPurchases.length)} of{" "}
+                {filteredPurchases.length} purchases
+              </p>
+              <div className="flex items-center gap-2 justify-self-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {safePage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+              <div />
             </div>
           )}
         </CardContent>

@@ -21,12 +21,14 @@ import type { NewItemFormData } from "./types";
 
 interface AddItemFormProps {
   newItem: NewItemFormData;
+  supplierOptions: string[];
   onItemChange: (field: keyof NewItemFormData, value: string | number) => void;
   onSave: () => void;
 }
 
 export function AddItemForm({
   newItem,
+  supplierOptions,
   onItemChange,
   onSave,
 }: AddItemFormProps) {
@@ -72,8 +74,14 @@ export function AddItemForm({
               value={newItem.supplier}
               onChange={(e) => onItemChange("supplier", e.target.value)}
               placeholder="Enter supplier name"
+              list="supplier-options"
               className="bg-white/70 dark:bg-gray-800/70 border-blue-200 dark:border-blue-700 focus:border-blue-500"
             />
+            <datalist id="supplier-options">
+              {supplierOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
         </div>
 

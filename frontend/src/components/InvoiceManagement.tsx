@@ -26,6 +26,18 @@ import { calculateInvoiceTotal } from "./invoice/utils";
 import type { KPIStats, InvoiceFilters as InvoiceFiltersType, InvoiceFormData } from "./invoice/types";
 
 export function InvoiceManagement() {
+  const formatDateOnly = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === "string") {
+      const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (m) return m[1];
+    }
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  };
   const [currentView, setCurrentView] = useState<
     "list" | "create" | "view" | "edit"
   >("list");
@@ -41,6 +53,7 @@ export function InvoiceManagement() {
   );
 
   const [formData, setFormData] = useState<InvoiceFormData>({
+    invoiceNumber: "",
     clientId: "",
     dueDate: "",
     notes: "",
@@ -262,7 +275,13 @@ export function InvoiceManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ clientId: "", dueDate: "", notes: "", paymentTerms: "30" });
+    setFormData({
+      invoiceNumber: "",
+      clientId: "",
+      dueDate: "",
+      notes: "",
+      paymentTerms: "30",
+    });
     setSelectedPurchases([]);
     setSelectedItems([]);
     setEditingItems({});
@@ -289,8 +308,11 @@ export function InvoiceManagement() {
     const { subtotal, tax, total } = calculateInvoiceTotal(selectedItems);
     try {
       const created = await createInvoice({
+        ...(formData.invoiceNumber.trim()
+          ? { invoiceNumber: formData.invoiceNumber.trim() }
+          : {}),
         clientId: formData.clientId,
-        dueDate: new Date(formData.dueDate).toISOString(),
+        dueDate: formatDateOnly(formData.dueDate),
         status: "draft",
         items: selectedItems,
         subtotal,
@@ -358,8 +380,9 @@ export function InvoiceManagement() {
       await updateInvoice({
         id: editInvoice.id,
         data: {
+          invoiceNumber: formData.invoiceNumber.trim() || editInvoice.invoiceNumber,
           clientId: formData.clientId,
-          dueDate: new Date(formData.dueDate).toISOString(),
+          dueDate: formatDateOnly(formData.dueDate),
           items: cleanItems,
           subtotal,
           tax,
@@ -426,13 +449,10 @@ export function InvoiceManagement() {
   const handleEditInvoice = (invoice: Invoice) => {
     setEditInvoice(invoice);
     setCurrentView("edit");
-    const due =
-      invoice.dueDate instanceof Date
-        ? invoice.dueDate
-        : new Date(invoice.dueDate);
     setFormData({
+      invoiceNumber: invoice.invoiceNumber || "",
       clientId: invoice.clientId,
-      dueDate: due.toISOString().split("T")[0],
+      dueDate: formatDateOnly(invoice.dueDate),
       notes: invoice.notes || "",
       paymentTerms: invoice.paymentTerms || "30",
     });

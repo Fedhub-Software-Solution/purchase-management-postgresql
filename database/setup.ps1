@@ -42,6 +42,16 @@ Write-Host "✓ Functions created"
 psql -U $DB_USER -d $DB_NAME -f database\migrations\004_views.sql
 Write-Host "✓ Views created"
 
+psql -U $DB_USER -d $DB_NAME -f database\migrations\005_suppliers.sql
+Write-Host "✓ Suppliers created"
+
+psql -U $DB_USER -d $DB_NAME -f database\migrations\006_supplier_details.sql
+Write-Host "✓ Supplier details created"
+
+psql -U $DB_USER -d $DB_NAME -f database\migrations\007_supplier_pan_and_purchase_supplier.sql
+psql -U $DB_USER -d $DB_NAME -f database\migrations\008_finance_reimbursement.sql
+Write-Host "✓ Supplier PAN and purchase supplier mapping created"
+
 Write-Host ""
 Write-Host "=========================================="
 Write-Host "Database setup complete!"

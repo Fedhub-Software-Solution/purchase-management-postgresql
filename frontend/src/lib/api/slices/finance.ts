@@ -16,6 +16,12 @@ export type FinanceRecord = {
   status: FinStatus;
   reference?: string;
   taxYear?: string;
+  /** Optional: who / where amount was spent by */
+  amountSpentBy?: string;
+  /** Optional: reimbursed portion (pending = amount − reimbursed) */
+  reimbursedAmount?: number;
+  /** Derived on server: amount − (reimbursedAmount ?? 0) */
+  pendingAmount?: number;
   createdAt?: string;  // ISO
   updatedAt?: string;  // ISO
 };
@@ -49,8 +55,13 @@ export type ListFinanceArgs = {
   pageToken?: string;
 };
 
-export type CreateFinanceRequest = Omit<FinanceRecord, "id" | "createdAt" | "updatedAt">;
-export type UpdateFinanceRequest = Partial<Omit<FinanceRecord, "id" | "createdAt" | "updatedAt">>;
+export type CreateFinanceRequest = Omit<
+  FinanceRecord,
+  "id" | "createdAt" | "updatedAt" | "pendingAmount"
+>;
+export type UpdateFinanceRequest = Partial<
+  Omit<FinanceRecord, "id" | "createdAt" | "updatedAt" | "pendingAmount">
+>;
 
 export const financeApi = createApi({
   reducerPath: "financeApi",

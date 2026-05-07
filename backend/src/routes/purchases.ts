@@ -15,7 +15,8 @@ async function rowToPurchase(row: any): Promise<Purchase> {
 
   return {
     id: row.id,
-    clientId: row.client_id,
+    clientId: row.client_id || undefined,
+    supplierId: row.supplier_id || undefined,
     poNumber: row.po_number,
     date: row.date ? new Date(row.date).toISOString().split("T")[0] : new Date(row.created_at).toISOString().split("T")[0],
     status: row.status,
@@ -50,6 +51,7 @@ router.get("/", async (req: Request, res: Response) => {
       pageToken,
       status,
       clientId,
+      supplierId,
       order = "desc",
       poPrefix,
     } = req.query as Record<string, string | undefined>;
@@ -70,6 +72,11 @@ router.get("/", async (req: Request, res: Response) => {
     if (clientId) {
       sql += ` AND client_id = $${paramCount}`;
       params.push(clientId);
+      paramCount++;
+    }
+    if (supplierId) {
+      sql += ` AND supplier_id = $${paramCount}`;
+      params.push(supplierId);
       paramCount++;
     }
 
@@ -104,6 +111,11 @@ router.get("/", async (req: Request, res: Response) => {
     if (clientId) {
       countSql += ` AND client_id = $${countParamCount}`;
       countParams.push(clientId);
+      countParamCount++;
+    }
+    if (supplierId) {
+      countSql += ` AND supplier_id = $${countParamCount}`;
+      countParams.push(supplierId);
       countParamCount++;
     }
     if (poPrefix && poPrefix.trim()) {
@@ -221,11 +233,12 @@ router.post("/", async (req: Request, res: Response) => {
     const purchase = await transaction(async (client) => {
       // Insert purchase
       const purchaseResult = await client.query(
-        `INSERT INTO purchases (client_id, po_number, date, status, subtotal, tax, total, base_currency, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO purchases (client_id, supplier_id, po_number, date, status, subtotal, tax, total, base_currency, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
-          input.clientId || "",
+          input.clientId || null,
+          input.supplierId || null,
           input.poNumber || "",
           input.date || new Date().toISOString().split("T")[0],
           input.status || "pending",
@@ -274,7 +287,7 @@ router.post("/", async (req: Request, res: Response) => {
 /**
  * PATCH /api/purchases/:id
  */
-async function updatePurchase(req: Request, res: Response) {
+router.patch("/:id", async (req: Request, res: Response) => {
   try {
     const input: Partial<Purchase> = req.body ?? {};
 
@@ -287,6 +300,10 @@ async function updatePurchase(req: Request, res: Response) {
       if (input.clientId !== undefined) {
         updates.push(`client_id = $${paramCount++}`);
         values.push(input.clientId);
+      }
+      if (input.supplierId !== undefined) {
+        updates.push(`supplier_id = $${paramCount++}`);
+        values.push(input.supplierId || null);
       }
       if (input.poNumber !== undefined) {
         updates.push(`po_number = $${paramCount++}`);
@@ -367,15 +384,14 @@ async function updatePurchase(req: Request, res: Response) {
     console.error("PATCH /purchases/:id error", err);
     handleDbError(err, res);
   }
-}
-
-router.patch("/:id", updatePurchase);
+});
 
 /**
  * PUT /api/purchases/:id (same as PATCH)
  */
 router.put("/:id", async (req: Request, res: Response) => {
-  return updatePurchase(req, res);
+  // Reuse PATCH handler
+  return router.patch("/:id", req, res);
 });
 
 /**
