@@ -103,35 +103,86 @@ router.post("/login", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  const user = await queryOne<User>(
-    "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
-    [email]
-  );
+  const isTransientDbError = (err: any) => {
+    const code = String(err?.code || "");
+    const msg = String(err?.message || "").toLowerCase();
+    return (
+      code === "ETIMEDOUT" ||
+      code === "ECONNRESET" ||
+      msg.includes("timeout") ||
+      msg.includes("terminated unexpectedly") ||
+      msg.includes("connection terminated")
+    );
+  };
 
-  if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  try {
+    let user = await queryOne<User>(
+      "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+      [email]
+    );
+
+    // One quick retry for cold starts / transient network hiccups
+    if (!user) {
+      // not retrying on "not found" because query succeeded; keep as is
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: "User is disabled" });
+    }
+
+    const token = signJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    });
+
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, role: user.role, name: user.name },
+    });
+  } catch (err: any) {
+    if (isTransientDbError(err)) {
+      try {
+        await sleep(350);
+        const user = await queryOne<User>(
+          "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+          [email]
+        );
+        if (!user) return res.status(401).json({ error: "Invalid email or password" });
+        const validPassword = await bcrypt.compare(password, user.password_hash);
+        if (!validPassword) return res.status(401).json({ error: "Invalid email or password" });
+        if (!user.active) return res.status(403).json({ error: "User is disabled" });
+        const token = signJWT({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+        });
+        return res.json({
+          token,
+          user: { id: user.id, email: user.email, role: user.role, name: user.name },
+        });
+      } catch (err2: any) {
+        console.error("POST /auth/login error (retry failed)", err2);
+        return res.status(503).json({ error: "Database unavailable" });
+      }
+    }
+
+    console.error("POST /auth/login error", err);
+    return res.status(503).json({ error: "Database unavailable" });
   }
-
-  const validPassword = await bcrypt.compare(password, user.password_hash);
-  if (!validPassword) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
-
-  if (!user.active) {
-    return res.status(403).json({ error: "User is disabled" });
-  }
-
-  const token = signJWT({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-  });
-
-  return res.json({
-    token,
-    user: { id: user.id, email: user.email, role: user.role, name: user.name },
-  });
 });
 
 // POST /api/auth/logout

@@ -26,13 +26,16 @@ const sslEnabled =
 const rejectUnauthorized =
   process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true' ? true : false;
 
+// Aiven over TLS can take a few seconds on cold starts; 2s is too aggressive.
+const connectionTimeoutMillis = Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 10000);
+
 const pool = new Pool(
   databaseUrl
     ? {
         connectionString: databaseUrl,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis,
         ssl: sslEnabled ? { rejectUnauthorized } : false,
       }
     : {
@@ -43,7 +46,7 @@ const pool = new Pool(
         password: process.env.DB_PASSWORD || '',
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis,
         ssl: sslEnabled ? { rejectUnauthorized } : false,
       }
 );

@@ -35,7 +35,14 @@ const supplierSchema = z.object({
       upiId: z.string().optional().default(""),
     })
     .optional()
-    .default({}),
+    .default(() => ({
+      accountName: "",
+      bankName: "",
+      accountNumber: "",
+      ifscCode: "",
+      branch: "",
+      upiId: "",
+    })),
   notes: z.string().optional().default(""),
 });
 

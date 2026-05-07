@@ -287,7 +287,7 @@ router.post("/", async (req: Request, res: Response) => {
 /**
  * PATCH /api/purchases/:id
  */
-router.patch("/:id", async (req: Request, res: Response) => {
+async function updatePurchase(req: Request, res: Response) {
   try {
     const input: Partial<Purchase> = req.body ?? {};
 
@@ -384,14 +384,15 @@ router.patch("/:id", async (req: Request, res: Response) => {
     console.error("PATCH /purchases/:id error", err);
     handleDbError(err, res);
   }
-});
+}
 
 /**
  * PUT /api/purchases/:id (same as PATCH)
  */
+router.patch("/:id", updatePurchase);
+
 router.put("/:id", async (req: Request, res: Response) => {
-  // Reuse PATCH handler
-  return router.patch("/:id", req, res);
+  return updatePurchase(req, res);
 });
 
 /**
