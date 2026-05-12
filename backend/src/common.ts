@@ -26,7 +26,9 @@ export function sendZodError(res: Response, error: z.ZodError) {
 export function getOffset(pageToken?: string): number {
   if (!pageToken) return 0;
   try {
-    return parseInt(Buffer.from(pageToken, 'base64').toString());
+    const n = parseInt(Buffer.from(pageToken, 'base64').toString(), 10);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return n;
   } catch {
     return 0;
   }
@@ -38,7 +40,15 @@ export function createPageToken(offset: number, limit: number, hasMore: boolean)
 
 // Database error handling
 export function handleDbError(err: any, res: Response) {
-  if (err.code === '23505') { // Unique violation
+  if (err.code === '23505') {
+    // Unique violation — suppliers.name is UNIQUE and names are backfilled from purchase_items (005_suppliers.sql)
+    const constraint = String(err.constraint || '');
+    if (constraint === 'suppliers_name_key') {
+      return res.status(409).json({
+        error:
+          'A supplier with this name already exists. Names from past purchases were imported automatically; edit that supplier or use a different name.',
+      });
+    }
     return res.status(409).json({ error: 'Duplicate entry' });
   }
   if (err.code === '23503') { // Foreign key violation
@@ -47,7 +57,21 @@ export function handleDbError(err: any, res: Response) {
   if (err.code === '23502') { // Not null violation
     return res.status(400).json({ error: 'Required field is missing' });
   }
-  console.error('Database error:', err);
+  if (err.code === '42703') {
+    // undefined_column — production DB often missing a migration
+    return res.status(500).json({
+      error:
+        'Database schema mismatch (missing column). Run all SQL migrations in database/migrations on the production database, in order.',
+    });
+  }
+  if (err.code === '42P01') {
+    // undefined_table
+    return res.status(500).json({
+      error:
+        'Database is missing required tables (e.g. suppliers). Run database/migrations on the production PostgreSQL instance, starting from 001_initial_schema.sql through the latest migration.',
+    });
+  }
+  console.error('Database error:', err?.code, err?.message, err);
   return res.status(500).json({ error: 'Database error', message: process.env.NODE_ENV === 'development' ? err.message : undefined });
 }
 
