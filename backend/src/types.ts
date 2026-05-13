@@ -18,6 +18,7 @@ export interface Client {
   status: 'active' | 'inactive';
   gstNumber: string;
   msmeNumber: string;
+  cinTinNumber: string;
   panNumber: string;
   billingAddress: Address;
   shippingAddress: Address;

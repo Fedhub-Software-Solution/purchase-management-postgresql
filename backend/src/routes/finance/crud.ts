@@ -26,6 +26,19 @@ function formatDateOnly(value: any): string | undefined {
   ).padStart(2, "0")}`;
 }
 
+const FINANCE_STATUSES = new Set(["completed", "pending", "failed"]);
+const FINANCE_TYPES = new Set(["invested", "expense", "tds"]);
+
+function normalizeFinanceStatus(value: unknown): string {
+  const normalized = String(value ?? "completed").trim().toLowerCase();
+  return FINANCE_STATUSES.has(normalized) ? normalized : "completed";
+}
+
+function normalizeFinanceType(value: unknown): string {
+  const normalized = String(value ?? "expense").trim().toLowerCase();
+  return FINANCE_TYPES.has(normalized) ? normalized : "expense";
+}
+
 // Helper to convert database row to API format
 function rowToFinanceRecord(row: any) {
   const amount = Number(row.amount || 0);
@@ -79,13 +92,13 @@ export async function createFinanceRecord(req: Request, res: Response) {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
-        body.type,
+        normalizeFinanceType(body.type),
         body.category,
         Number(body.amount || 0),
         body.description || "",
         date,
         body.paymentMethod || "",
-        body.status || "completed",
+        normalizeFinanceStatus(body.status),
         body.reference || null,
         body.taxYear || null,
         body.amountSpentBy != null && String(body.amountSpentBy).trim() !== ""

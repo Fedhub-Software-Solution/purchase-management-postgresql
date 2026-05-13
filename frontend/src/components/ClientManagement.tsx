@@ -11,6 +11,22 @@ import { ClientList } from "./client/ClientList";
 import { ClientForm } from "./client/ClientForm";
 import type { ClientFilters, ClientFormData } from "./client/types";
 
+function resolveClientRecord(
+  clientId: string,
+  clients: Client[],
+  fallback: Client
+): Client | null {
+  return (
+    clients.find((client) => client.id === clientId) ??
+    clients.find(
+      (client) =>
+        client.email.trim().toLowerCase() === fallback.email.trim().toLowerCase() &&
+        client.company.trim() === fallback.company.trim()
+    ) ??
+    null
+  );
+}
+
 export function ClientManagement() {
   const [currentView, setCurrentView] = useState<"list" | "add" | "edit">("list");
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -32,6 +48,7 @@ export function ClientManagement() {
     status: "active",
     gstNumber: "",
     msmeNumber: "",
+    cinTinNumber: "",
     panNumber: "",
     billingAddress: {
       street: "",
@@ -56,7 +73,10 @@ export function ClientManagement() {
   });
 
   // Data fetching
-  const { data, isFetching, refetch } = useListClientsQuery({ limit: 500 });
+  const { data, isFetching, refetch } = useListClientsQuery(
+    { limit: 500 },
+    { refetchOnMountOrArgChange: true }
+  );
   const serverClients: Client[] = data?.items ?? [];
 
   // Mutations
@@ -145,6 +165,7 @@ export function ClientManagement() {
       status: "active",
       gstNumber: "",
       msmeNumber: "",
+      cinTinNumber: "",
       panNumber: "",
       billingAddress: {
         street: "",
@@ -179,6 +200,7 @@ export function ClientManagement() {
       status: formData.status,
       gstNumber: formData.gstNumber,
       msmeNumber: formData.msmeNumber,
+      cinTinNumber: formData.cinTinNumber,
       panNumber: formData.panNumber,
       billingAddress: formData.billingAddress,
       shippingAddress: sameAsBilling ? formData.billingAddress : formData.shippingAddress,
@@ -188,7 +210,18 @@ export function ClientManagement() {
 
     try {
       if (editingClient) {
-        await updateClient({ id: editingClient.id, patch: payload }).unwrap();
+        const { data: freshData } = await refetch();
+        const clients = freshData?.items ?? data?.items ?? [];
+        const target = resolveClientRecord(editingClient.id, clients, editingClient);
+        if (!target) {
+          toast.error("This client is no longer available. Refresh the list and open it again.");
+          setCurrentView("list");
+          setEditingClient(null);
+          resetForm();
+          return;
+        }
+
+        await updateClient({ id: target.id, patch: payload }).unwrap();
         toast.success("Client updated successfully!");
       } else {
         await createClient(payload as any).unwrap();
@@ -199,32 +232,42 @@ export function ClientManagement() {
       setEditingClient(null);
       refetch();
     } catch (err: any) {
+      if (err?.status === 404) {
+        await refetch();
+        toast.error("Client not found. The list was refreshed — open the client again and retry.");
+        return;
+      }
       const msg = err?.data?.error || err?.error || "Failed to save client";
       toast.error(String(msg));
     }
   };
 
-  const handleEdit = (client: Client) => {
-    setEditingClient(client);
+  const handleEdit = async (client: Client) => {
+    const { data: freshData } = await refetch();
+    const clients = freshData?.items ?? data?.items ?? [];
+    const resolved = resolveClientRecord(client.id, clients, client) ?? client;
+
+    setEditingClient(resolved);
     setFormData({
-      company: client.company,
-      contactPerson: client.contactPerson,
-      email: client.email,
-      phone: client.phone,
-      status: (client.status as "active" | "inactive") || "active",
-      gstNumber: client.gstNumber || "",
-      msmeNumber: client.msmeNumber || "",
-      panNumber: client.panNumber || "",
-      billingAddress: client.billingAddress,
-      shippingAddress: (client as any).shippingAddress || client.billingAddress,
-      bankDetails: (client as any).bankDetails || {
+      company: resolved.company,
+      contactPerson: resolved.contactPerson,
+      email: resolved.email,
+      phone: resolved.phone,
+      status: (resolved.status as "active" | "inactive") || "active",
+      gstNumber: resolved.gstNumber || "",
+      msmeNumber: resolved.msmeNumber || "",
+      cinTinNumber: resolved.cinTinNumber || "",
+      panNumber: resolved.panNumber || "",
+      billingAddress: resolved.billingAddress,
+      shippingAddress: (resolved as any).shippingAddress || resolved.billingAddress,
+      bankDetails: (resolved as any).bankDetails || {
         bankName: "",
         accountNumber: "",
         ifscCode: "",
         accountHolderName: "",
       },
     });
-    setSameAsBilling(((client as any).sameAsShipping as boolean) || false);
+    setSameAsBilling(((resolved as any).sameAsShipping as boolean) || false);
     setCurrentView("edit");
   };
 

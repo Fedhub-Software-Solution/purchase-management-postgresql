@@ -10,6 +10,7 @@ export interface Client {
   // Business Information
   gstNumber: string;
   msmeNumber: string;
+  cinTinNumber: string;
   panNumber: string;
   
   // Addresses

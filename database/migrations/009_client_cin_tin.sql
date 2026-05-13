@@ -1,0 +1,2 @@
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS cin_tin_number VARCHAR(50) DEFAULT '';

@@ -300,25 +300,38 @@ export function ClientForm({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="msmeNumber" className="flex items-center space-x-1">
-                        <span>MSME Number</span>
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="msmeNumber"
-                        value={formData.msmeNumber}
-                        onChange={(e) =>
-                          onFormDataChange({ ...formData, msmeNumber: e.target.value })
-                        }
-                        required
-                        placeholder="UDYAM-XX-00-0000000"
-                        className="bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-green-500 transition-colors"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Udyam registration number for MSME benefits
-                      </p>
-                    </div>
+                    <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="msmeNumber">MSME Number (Optional)</Label>
+                        <Input
+                          id="msmeNumber"
+                          value={formData.msmeNumber}
+                          onChange={(e) =>
+                            onFormDataChange({ ...formData, msmeNumber: e.target.value })
+                          }
+                          placeholder="UDYAM-XX-00-0000000"
+                          className="bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-green-500 transition-colors"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Udyam registration number for MSME benefits
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cinTinNumber">CIN/TIN # (Optional)</Label>
+                        <Input
+                          id="cinTinNumber"
+                          value={formData.cinTinNumber}
+                          onChange={(e) =>
+                            onFormDataChange({ ...formData, cinTinNumber: e.target.value })
+                          }
+                          placeholder="Enter CIN or TIN"
+                          className="bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-green-500 transition-colors"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Corporate or tax identification number
+                        </p>
+                      </div>
+                    </motion.div>
                   </motion.div>
                 </TabsContent>
 

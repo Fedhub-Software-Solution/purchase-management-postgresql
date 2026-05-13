@@ -50,6 +50,7 @@ Write-Host "✓ Supplier details created"
 
 psql -U $DB_USER -d $DB_NAME -f database\migrations\007_supplier_pan_and_purchase_supplier.sql
 psql -U $DB_USER -d $DB_NAME -f database\migrations\008_finance_reimbursement.sql
+psql -U $DB_USER -d $DB_NAME -f database\migrations\009_client_cin_tin.sql
 Write-Host "✓ Supplier PAN and purchase supplier mapping created"
 
 Write-Host ""

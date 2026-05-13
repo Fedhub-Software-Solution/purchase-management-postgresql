@@ -15,6 +15,7 @@ const clientSchema = z.object({
   status: z.enum(["active", "inactive"]),
   gstNumber: z.string().optional().default(""),
   msmeNumber: z.string().optional().default(""),
+  cinTinNumber: z.string().optional().default(""),
   panNumber: z.string().optional().default(""),
   billingAddress: z.object({
     street: z.string(),
@@ -45,6 +46,7 @@ function rowToClient(row: any): Client {
     status: row.status,
     gstNumber: row.gst_number || "",
     msmeNumber: row.msme_number || "",
+    cinTinNumber: row.cin_tin_number || "",
     panNumber: row.pan_number || "",
     billingAddress: {
       street: row.billing_address_street,
@@ -122,13 +124,13 @@ clientsRouter.post("/", async (req: Request, res: Response) => {
     const result = await queryOne(
       `INSERT INTO clients (
         company, contact_person, email, phone, status,
-        gst_number, msme_number, pan_number,
+        gst_number, msme_number, cin_tin_number, pan_number,
         billing_address_street, billing_address_city, billing_address_state,
         billing_address_postal_code, billing_address_country,
         shipping_address_street, shipping_address_city, shipping_address_state,
         shipping_address_postal_code, shipping_address_country,
         notes, base_currency
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
       [
         parsed.company,
@@ -138,6 +140,7 @@ clientsRouter.post("/", async (req: Request, res: Response) => {
         parsed.status,
         parsed.gstNumber,
         parsed.msmeNumber,
+        parsed.cinTinNumber,
         parsed.panNumber,
         parsed.billingAddress.street,
         parsed.billingAddress.city,
@@ -198,6 +201,10 @@ clientsRouter.put("/:id", async (req: Request, res: Response) => {
     if (parsed.msmeNumber !== undefined) {
       updates.push(`msme_number = $${paramCount++}`);
       values.push(parsed.msmeNumber);
+    }
+    if (parsed.cinTinNumber !== undefined) {
+      updates.push(`cin_tin_number = $${paramCount++}`);
+      values.push(parsed.cinTinNumber);
     }
     if (parsed.panNumber !== undefined) {
       updates.push(`pan_number = $${paramCount++}`);

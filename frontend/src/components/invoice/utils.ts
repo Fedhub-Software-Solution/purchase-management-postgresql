@@ -37,6 +37,31 @@ const DEFAULT_COMPANY = {
   companyMSME: "UDYAM-TN-11-0105606",
 };
 
+function drawClientBusinessIdentifiers(
+  pdf: any,
+  client: Client | undefined,
+  x: number,
+  y: number,
+  lineHeight = 5
+): number {
+  if (!client) return y;
+
+  const lines: string[] = [];
+  if (client.gstNumber?.trim()) lines.push(`GST: ${client.gstNumber.trim()}`);
+  if (client.panNumber?.trim()) lines.push(`PAN: ${client.panNumber.trim()}`);
+  if (client.msmeNumber?.trim()) lines.push(`MSME: ${client.msmeNumber.trim()}`);
+  if (client.cinTinNumber?.trim()) lines.push(`CIN/TIN: ${client.cinTinNumber.trim()}`);
+
+  if (!lines.length) return y;
+
+  let nextY = y + 2;
+  lines.forEach((line) => {
+    pdf.text(line, x, nextY);
+    nextY += lineHeight;
+  });
+  return nextY;
+}
+
 export async function downloadInvoicePDF(
   invoice: Invoice,
   clients: Client[],
@@ -333,11 +358,7 @@ export async function downloadInvoicePDF(
       billToY += 5;
     });
 
-    if (client.gstNumber) {
-      billToY += 2;
-      pdf.text(`GST: ${client.gstNumber}`, leftMargin, billToY);
-      billToY += 5;
-    }
+    billToY = drawClientBusinessIdentifiers(pdf, client, leftMargin, billToY, 5);
 
     // RIGHT COLUMN: Shipping Address
     const shippingX = leftMargin + 100;
@@ -748,6 +769,8 @@ export async function downloadInvoiceDeliveryChallanPDF(
       pdf.text(line, left, leftColY);
       leftColY += 4.5;
     });
+
+    leftColY = drawClientBusinessIdentifiers(pdf, client, left, leftColY, 4.5);
 
     let rightColY = y;
     const detailsX = left + 95;

@@ -13,8 +13,8 @@ import { FinanceForm } from "./finance/FinanceForm";
 import { FinanceList } from "./finance/FinanceList";
 import { FinanceReimbursedTable } from "./finance/FinanceReimbursedTable";
 import { FinanceBulkUploadDialog } from "./finance/FinanceBulkUploadDialog";
-import { categoryOptions, toDate, yyyyMmDd } from "./finance/utils";
-import type { FinanceFilters, FinanceFormData } from "./finance/types";
+import { categoryOptions, toDate, yyyyMmDd, normalizeFinanceStatus, normalizeFinanceType, collectBulkImportRowIssues } from "./finance/utils";
+import type { FinanceFilters, FinanceFormData, FinanceBulkImportPreviewRow } from "./finance/types";
 
 export function FinanceManagement() {
   const [currentView, setCurrentView] = useState<
@@ -24,7 +24,7 @@ export function FinanceManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [bulkFileName, setBulkFileName] = useState("");
-  const [bulkPreviewRows, setBulkPreviewRows] = useState<any[]>([]);
+  const [bulkPreviewRows, setBulkPreviewRows] = useState<FinanceBulkImportPreviewRow[]>([]);
   const [bulkValidationErrors, setBulkValidationErrors] = useState<string[]>([]);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
 
@@ -330,13 +330,13 @@ export function FinanceManagement() {
     const rows = lines.slice(1).map((line) => line.split(","));
     return rows.map((cols) => {
       return {
-        type: "expense" as FinType,
+        type: normalizeFinanceType(col(cols, "type") || "expense"),
         category: col(cols, "category").trim(),
         amount: Number((col(cols, "amount") || "0").trim()),
         description: col(cols, "description").trim(),
         date: normalizeDateForImport(col(cols, "date")),
         paymentMethod: col(cols, "paymentMethod", "payment_method", "payment method").trim(),
-        status: ((col(cols, "status") || "completed").trim() as FinStatus) || "completed",
+        status: (col(cols, "status") || "completed").trim(),
         amountSpentBy:
           col(
             cols,
@@ -376,9 +376,15 @@ export function FinanceManagement() {
         return;
       }
 
-      const normalized = records.map((r, i) => ({
-        // keep date-only string to avoid timezone shifts
-        date:
+      const validationErrors: string[] = [];
+      const previewRows: FinanceBulkImportPreviewRow[] = records.map((r, i) => {
+        const issues = collectBulkImportRowIssues(r);
+        const rowNumber = i + 2;
+        if (issues.length > 0) {
+          validationErrors.push(`Row ${rowNumber}: ${issues.join("; ")}`);
+        }
+
+        const normalizedDate =
           (() => {
             const v = String(r.date || "").trim();
             if (!v) return yyyyMmDd(new Date());
@@ -387,51 +393,31 @@ export function FinanceManagement() {
             if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
             const d = new Date(v);
             return Number.isNaN(d.getTime()) ? yyyyMmDd(new Date()) : yyyyMmDd(d);
-          })(),
-        type: "expense" as FinType,
-        category: r.category || "",
-        amount: Number(r.amount || 0),
-        description: r.description || `Imported record #${i + 1}`,
-        paymentMethod: r.paymentMethod || "Bank Transfer",
-        status: (r.status || "completed") as FinStatus,
-        amountSpentBy:
-          r.amountSpentBy ??
-          r.amountSpentByName ??
-          r.amount_spent_by ??
-          r.amount_spent_by_name ??
-          undefined,
-      }));
+          })();
 
-      // Validate before submit so user can review and fix issues first.
-      const validationErrors: string[] = [];
-      const invalidDateRows: number[] = [];
-      normalized.forEach((rec, i) => {
-        const d = String(rec.date || "").trim();
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(new Date(d).getTime())) {
-          invalidDateRows.push(i + 2);
-        }
-        if (!String(rec.category || "").trim()) validationErrors.push(`Row ${i + 2}: category is required`);
-        if (!String(rec.description || "").trim())
-          validationErrors.push(`Row ${i + 2}: description is required`);
-        if (!String(rec.paymentMethod || "").trim())
-          validationErrors.push(`Row ${i + 2}: payment method is required`);
-        if (!Number.isFinite(Number(rec.amount)) || Number(rec.amount) <= 0)
-          validationErrors.push(`Row ${i + 2}: amount must be greater than 0`);
+        return {
+          category: r.category || "",
+          amount: Number(r.amount || 0),
+          description: r.description || `Imported record #${i + 1}`,
+          date: normalizedDate,
+          paymentMethod: r.paymentMethod || "Bank Transfer",
+          status: normalizeFinanceStatus(r.status || "completed"),
+          amountSpentBy:
+            r.amountSpentBy ??
+            r.amountSpentByName ??
+            r.amount_spent_by ??
+            r.amount_spent_by_name ??
+            undefined,
+          remarks: issues.length > 0 ? issues.join("; ") : "—",
+        };
       });
-      if (invalidDateRows.length > 0) {
-        validationErrors.push(
-          `Invalid date format in row(s): ${invalidDateRows.join(
-            ", "
-          )}. Use YYYY-MM-DD or DD/MM/YYYY.`
-        );
-      }
 
-      setBulkPreviewRows(normalized);
+      setBulkPreviewRows(previewRows);
       setBulkValidationErrors(validationErrors);
       if (validationErrors.length > 0) {
         toast.error("Validation failed. Please fix the file and re-upload.");
       } else {
-        toast.success(`Validation passed. ${normalized.length} record(s) ready to import.`);
+        toast.success(`Validation passed. ${previewRows.length} record(s) ready to import.`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Bulk upload failed");
@@ -456,13 +442,26 @@ export function FinanceManagement() {
 
       let ok = 0;
       let fail = 0;
+      let firstError: string | null = null;
       /* eslint-disable no-await-in-loop */
       for (const rec of bulkPreviewRows) {
         try {
-          await createFinance(rec).unwrap();
+          const { remarks: _remarks, ...payload } = rec;
+          await createFinance({
+            type: "expense",
+            ...payload,
+          }).unwrap();
           ok++;
-        } catch {
+        } catch (err: any) {
           fail++;
+          if (!firstError) {
+            firstError =
+              err?.data?.error ||
+              err?.data?.message ||
+              err?.error ||
+              err?.message ||
+              "Request failed";
+          }
         }
       }
       /* eslint-enable no-await-in-loop */
@@ -472,7 +471,9 @@ export function FinanceManagement() {
       if (fail === 0) {
         toast.success(`Bulk upload complete (${ok} records)`);
       } else {
-        toast.warning(`Bulk upload finished: ${ok} succeeded, ${fail} failed`);
+        toast.warning(
+          `Bulk upload finished: ${ok} succeeded, ${fail} failed${firstError ? ` — ${firstError}` : ""}`
+        );
       }
 
       setIsBulkUploadOpen(false);

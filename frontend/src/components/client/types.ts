@@ -16,6 +16,7 @@ export type ClientFormData = {
   status: 'active' | 'inactive';
   gstNumber: string;
   msmeNumber: string;
+  cinTinNumber: string;
   panNumber: string;
   billingAddress: {
     street: string;

@@ -20,6 +20,17 @@ export type FinanceFormData = {
   amountSpentBy: string;
 };
 
+export type FinanceBulkImportPreviewRow = {
+  category: string;
+  amount: number;
+  description: string;
+  date: string;
+  paymentMethod: string;
+  status: string;
+  amountSpentBy?: string;
+  remarks: string;
+};
+
 export interface FinanceListProps {
   records: any[];
   filteredRecords: any[];
